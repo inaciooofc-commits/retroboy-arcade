@@ -80,3 +80,20 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute procedure public.handle_new_user();
+
+
+-- Developer access is managed only by a trusted project owner through the SQL Editor.
+-- Client users can read their own role, but cannot insert/update/delete role assignments.
+create table if not exists public.user_roles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  role text not null check (role in ('player', 'developer', 'admin')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.user_roles enable row level security;
+grant select on public.user_roles to authenticated;
+
+drop policy if exists "users read own role" on public.user_roles;
+create policy "users read own role" on public.user_roles
+  for select to authenticated
+  using ((select auth.uid()) = user_id);

@@ -1,4 +1,4 @@
-# Retroboy Arcade
+# Retroboy Arcade — 0.2.0-alpha
 
 Aplicativo Android de jogos retrô, com identidade visual arcade neon. O projeto começa com uma base Android nativa em Kotlin + Jetpack Compose.
 
@@ -59,3 +59,15 @@ O arquivo `catalog/catalog.json` é o manifesto inicial. Como o repositório do 
 ## Licenças dos motores
 
 A integração de FBNeo, gpSP e demais componentes deve respeitar a licença de cada projeto, incluindo disponibilização do código-fonte correspondente quando exigido. Este repositório não inclui ROMs nem BIOS comerciais.
+
+
+## Emulação — status honesto da versão 0.2.0-alpha
+
+A tela Downloads agora pode baixar e validar as bibliotecas oficiais FBNeo, gpSP e mGBA para Android ARM64/ARMv7. A validação confirma que a biblioteca abre e exporta as funções principais da API Libretro. Isso ainda não é o runtime que renderiza e executa um jogo; o frontend Libretro (vídeo, áudio, input, save states e ciclo retro_run) continua sendo a próxima etapa.
+
+- Neo Geo/Arcade: FBNeo é o núcleo principal e suporta netplay, mas sua licença é não comercial.
+- GBA offline: mGBA é a opção de precisão/compatibilidade.
+- Pokémon FireRed online: gpSP é a opção experimental indicada por oferecer netplay e emulação do adaptador sem fio GBA. Os modos de troca/batalha precisam ser validados com duas cópias idênticas do jogo.
+- A sincronização de partidas não está ativada nesta versão.
+
+Veja docs/EMULATION_ARCHITECTURE.md, docs/DEVELOPER_ACCOUNT.md e docs/VISUAL_IDENTITY.md.

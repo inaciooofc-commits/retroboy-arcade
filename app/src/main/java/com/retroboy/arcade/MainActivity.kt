@@ -30,24 +30,31 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.retroboy.arcade.data.AchievementCatalog
 import com.retroboy.arcade.data.AuthRepository
 import com.retroboy.arcade.data.CatalogRepository
+import com.retroboy.arcade.data.DeveloperAccessRepository
+import com.retroboy.arcade.emulation.CoreCatalog
+import com.retroboy.arcade.emulation.CoreInstaller
 import com.retroboy.arcade.model.Achievement
 import com.retroboy.arcade.model.GameEntry
 import com.retroboy.arcade.model.Platform
 import kotlinx.coroutines.launch
 
-private val Night = Color(0xFF090812)
-private val Panel = Color(0xFF171426)
-private val Panel2 = Color(0xFF211B34)
-private val Purple = Color(0xFF9B5CFF)
-private val Cyan = Color(0xFF45D9E8)
-private val Pink = Color(0xFFFF4FA3)
-private val Muted = Color(0xFFAAA2BD)
+private val Night = Color(0xFF070918)
+private val Panel = Color(0xFF111631)
+private val Panel2 = Color(0xFF171F3B)
+private val Purple = Color(0xFF8F5BFF)
+private val Cyan = Color(0xFF00EFFF)
+private val Pink = Color(0xFFFF2DD6)
+private val Muted = Color(0xFF93A4C8)
+private val BrandFont = FontFamily(Font(R.font.stranger_title))
+private val DisplayFont = FontFamily(Font(R.font.nightwork))
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,7 +77,13 @@ private fun RetroboyApp() {
     var authMessage by remember { mutableStateOf("") }
     val authRepository = remember { AuthRepository() }
     val catalogRepository = remember { CatalogRepository() }
+    val developerAccessRepository = remember { DeveloperAccessRepository() }
+    val coreInstaller = remember { CoreInstaller(context.applicationContext) }
     val scope = rememberCoroutineScope()
+    var isDeveloper by remember { mutableStateOf(false) }
+    var installedCoreIds by remember { mutableStateOf(coreInstaller.installedCoreIds()) }
+    var installingCore by remember { mutableStateOf<String?>(null) }
+    var coreInstallMessage by remember { mutableStateOf("") }
     var catalogCount by remember { mutableIntStateOf(0) }
     var catalogMessage by remember { mutableStateOf("Catálogo ainda não consultado") }
     var assetsLoading by remember { mutableStateOf(false) }
@@ -96,7 +109,7 @@ private fun RetroboyApp() {
                 AuthScreen(
                     createAccount = createAccount,
                     onToggleMode = { createAccount = !createAccount; authMessage = "" },
-                    onGuest = { guest = true; prefs.edit().putBoolean("guest", true).apply(); authVisible = false },
+                    onGuest = { guest = true; isDeveloper = false; prefs.edit().putBoolean("guest", true).apply(); authVisible = false },
                     message = authMessage,
                     onSubmit = { inputEmail, password ->
                         authMessage = "Conectando ao Supabase…"
@@ -108,6 +121,7 @@ private fun RetroboyApp() {
                                     authMessage = "Conta criada. Confirme seu e-mail e depois entre com sua senha."
                                 } else {
                                     email = user.email
+                                    isDeveloper = user.accessToken?.let { developerAccessRepository.hasDeveloperAccess(it) } ?: false
                                     guest = false
                                     prefs.edit().remove("email").putBoolean("guest", false).apply()
                                     authVisible = false
@@ -119,7 +133,7 @@ private fun RetroboyApp() {
                 )
             } else {
                 Column(Modifier.fillMaxSize()) {
-                    Header(email = email, guest = guest)
+                    Header(email = email, guest = guest, isDeveloper = isDeveloper)
                     AnimatedContent(targetState = tab, label = "main-tab", modifier = Modifier.weight(1f)) { current ->
                         when (current) {
                             "Início" -> HomeScreen(
@@ -131,6 +145,23 @@ private fun RetroboyApp() {
                             "Conquistas" -> AchievementsScreen(AchievementCatalog.all)
                             "Downloads" -> DownloadsScreen(
                                 count = catalogCount, message = catalogMessage, loading = assetsLoading,
+                                installedCoreIds = installedCoreIds, installingCore = installingCore,
+                                coreInstallMessage = coreInstallMessage,
+                                onInstallCore = { coreId ->
+                                    if (installingCore == null && !installedCoreIds.contains(coreId)) {
+                                        installingCore = coreId
+                                        coreInstallMessage = "Baixando núcleo oficial do Libretro…"
+                                        scope.launch {
+                                            coreInstaller.install(coreId).onSuccess { installed ->
+                                                installedCoreIds = coreInstaller.installedCoreIds()
+                                                coreInstallMessage = installed.title + " instalado e validado (" + installed.sha256.take(12) + "). O runtime de execução ainda está em integração."
+                                            }.onFailure { error ->
+                                                coreInstallMessage = error.message ?: "Falha ao instalar o núcleo."
+                                            }
+                                            installingCore = null
+                                        }
+                                    }
+                                },
                                 onRefresh = {
                                     assetsLoading = true
                                     scope.launch {
@@ -142,8 +173,8 @@ private fun RetroboyApp() {
                                     }
                                 }
                             )
-                            else -> ProfileScreen(email, guest, onLogin = { authVisible = true }, onLogout = {
-                                email = ""; guest = false; prefs.edit().clear().apply(); authVisible = true
+                            else -> ProfileScreen(email, guest, isDeveloper, onLogin = { authVisible = true }, onLogout = {
+                                email = ""; guest = false; isDeveloper = false; prefs.edit().clear().apply(); authVisible = true
                             })
                         }
                     }
@@ -158,18 +189,18 @@ private fun RetroboyApp() {
 }
 
 @Composable
-private fun Header(email: String, guest: Boolean) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun Header(email: String, guest: Boolean, isDeveloper: Boolean) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(Brush.linearGradient(listOf(Purple, Pink))), contentAlignment = Alignment.Center) {
             Icon(Icons.Rounded.SportsEsports, null, tint = Color.White, modifier = Modifier.size(25.dp))
         }
         Spacer(Modifier.width(11.dp))
-        Column(Modifier.weight(1f)) {
-            Text("RETROBOY", color = Color.White, fontWeight = FontWeight.Black, fontSize = 19.sp, letterSpacing = 2.sp)
-            Text("ARCADE  •  PLAYER NETWORK", color = Muted, fontSize = 9.sp, letterSpacing = 1.5.sp)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            Text("RETROBOY", color = Color.White, fontFamily = BrandFont, fontSize = 27.sp, letterSpacing = 1.2.sp)
+            Text("ARCADE", color = Cyan, fontFamily = DisplayFont, fontSize = 13.sp, letterSpacing = 2.4.sp)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(if (guest) "GUEST PLAYER" else "PLAYER", color = Cyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Text(if (isDeveloper) "DEVELOPER" else if (guest) "GUEST PLAYER" else "PLAYER", color = if (isDeveloper) Color(0xFFFFDE4D) else Cyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             Text(if (guest) "Offline profile" else email.substringBefore('@'), color = Color.White, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
@@ -181,7 +212,7 @@ private fun HomeScreen(email: String, importedCount: Int, onOpenGames: () -> Uni
         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(listOf(Color(0xFF38205F), Color(0xFF171326), Color(0xFF102C3A)))).border(1.dp, Color(0x665E4D8A), RoundedCornerShape(24.dp)).padding(20.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("INSERT COIN TO CONTINUE", color = Cyan, fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
-                Text("SEU FLIPERAMA.\nSUAS REGRAS.", color = Color.White, fontSize = 28.sp, lineHeight = 31.sp, fontWeight = FontWeight.Black)
+                Text("SEU FLIPERAMA.\nSUAS REGRAS.", color = Color.White, fontFamily = DisplayFont, fontSize = 30.sp, lineHeight = 34.sp, letterSpacing = .5.sp)
                 Text("Clássicos, desafios e partidas com seus amigos.", color = Color(0xFFD2C9E2), fontSize = 13.sp)
                 Button(onClick = onOpenGames, colors = ButtonDefaults.buttonColors(containerColor = Purple), shape = RoundedCornerShape(12.dp)) {
                     Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text("ABRIR BIBLIOTECA", fontWeight = FontWeight.Bold)
@@ -218,9 +249,9 @@ private fun StatCard(label: String, value: String, icon: androidx.compose.ui.gra
 
 @Composable
 private fun SectionTitle(title: String, subtitle: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-        Text(subtitle, color = Muted, fontSize = 10.sp, letterSpacing = 1.2.sp)
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(title, color = Color.White, fontFamily = DisplayFont, fontSize = 18.sp, letterSpacing = .8.sp)
+        Text(subtitle, color = Cyan.copy(alpha = .8f), fontFamily = DisplayFont, fontSize = 10.sp, letterSpacing = 1.1.sp)
     }
 }
 
@@ -315,45 +346,106 @@ private fun AchievementRow(item: Achievement) {
     }
 }
 @Composable
-private fun DownloadsScreen(count: Int, message: String, loading: Boolean, onRefresh: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+private fun DownloadsScreen(
+    count: Int,
+    message: String,
+    loading: Boolean,
+    installedCoreIds: Set<String>,
+    installingCore: String?,
+    coreInstallMessage: String,
+    onInstallCore: (String) -> Unit,
+    onRefresh: () -> Unit
+) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
         SectionTitle("DOWNLOAD CENTER", "CATÁLOGO RETROBOY")
         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(Color(0xFF352050), Color(0xFF152A38)))).padding(17.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Rounded.CloudDownload, null, tint = Cyan, modifier = Modifier.size(30.dp))
-                Text("Conteúdo e configurações", color = Color.White, fontWeight = FontWeight.Black, fontSize = 17.sp)
-                Text("Baixe apenas arquivos autorizados, capas e perfis de configuração. ROMs comerciais e BIOS protegidas devem ser fornecidas pelo próprio usuário.", color = Color(0xFFD0C7DE), fontSize = 11.sp)
+                Text("Conteúdo e configurações", color = Color.White, fontFamily = DisplayFont, fontSize = 19.sp)
+                Text("Capas, configurações e conteúdo autorizado. ROMs comerciais e BIOS protegidas devem ser fornecidas pelo próprio usuário.", color = Color(0xFFD0C7DE), fontSize = 11.sp)
             }
         }
         Button(onClick = onRefresh, enabled = !loading, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Purple), shape = RoundedCornerShape(12.dp)) {
             if (loading) CircularProgressIndicator(Modifier.size(17.dp), color = Color.White, strokeWidth = 2.dp)
             else Icon(Icons.Rounded.Sync, null)
-            Spacer(Modifier.width(8.dp)); Text(if (loading) "CONSULTANDO…" else "CONSULTAR CATÁLOGO GITHUB")
+            Spacer(Modifier.width(8.dp)); Text(if (loading) "CONSULTANDO…" else "CONSULTAR CATÁLOGO GITHUB", fontFamily = DisplayFont)
         }
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Panel).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Inventory2, null, tint = Cyan)
             Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) { Text("Itens publicados", color = Color.White, fontWeight = FontWeight.Bold); Text(message, color = Muted, fontSize = 10.sp) }
+            Column(Modifier.weight(1f)) {
+                Text("Itens publicados", color = Color.White, fontFamily = DisplayFont, fontSize = 16.sp)
+                Text(message, color = Muted, fontSize = 10.sp)
+            }
             Text(count.toString(), color = Cyan, fontWeight = FontWeight.Black, fontSize = 20.sp)
         }
-        Text("O catálogo será ativado assim que o repositório remoto for criado e publicado.", color = Muted, fontSize = 10.sp)
+        SectionTitle("MOTORES DE EMULAÇÃO", "DOWNLOAD DIRETO DO BUILD BOT OFICIAL LIBRETRO")
+        CoreCatalog.all.forEach { core ->
+            val installed = installedCoreIds.contains(core.id)
+            val busy = installingCore == core.id
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Panel).border(1.dp, if (installed) Color(0xFF4AFFA3).copy(alpha = .45f) else Purple.copy(alpha = .3f), RoundedCornerShape(15.dp)).padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.size(42.dp).clip(RoundedCornerShape(11.dp)).background(Panel2), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Memory, null, tint = if (installed) Color(0xFF4AFFA3) else Cyan, modifier = Modifier.size(23.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(core.title, color = Color.White, fontFamily = DisplayFont, fontSize = 16.sp)
+                    Text(core.systems, color = Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(core.description, color = Muted, fontSize = 9.sp)
+                    Text("Licença: " + core.license + if (core.netplay) " • Netplay suportado" else " • Uso local", color = Muted, fontSize = 8.sp)
+                }
+                Spacer(Modifier.width(6.dp))
+                if (installed) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Rounded.CheckCircle, null, tint = Color(0xFF4AFFA3), modifier = Modifier.size(22.dp))
+                        Text("OK", color = Color(0xFF4AFFA3), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Button(
+                        onClick = { onInstallCore(core.id) },
+                        enabled = installingCore == null,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Purple),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        if (busy) CircularProgressIndicator(Modifier.size(15.dp), color = Color.White, strokeWidth = 2.dp)
+                        else Text("BAIXAR", fontFamily = DisplayFont, fontSize = 10.sp)
+                    }
+                }
+            }
+        }
+        if (coreInstallMessage.isNotBlank()) {
+            Text(coreInstallMessage, color = if (coreInstallMessage.contains("instalado")) Color(0xFF4AFFA3) else Cyan, fontSize = 10.sp)
+        }
+        Text("A instalação verifica o arquivo nativo e a ABI do aparelho. O runtime que executa os jogos e o netplay integrado ainda precisam ser concluídos.", color = Muted, fontSize = 10.sp)
+        Text("O catálogo será ativado quando o manifesto GitHub estiver publicado.", color = Muted, fontSize = 10.sp)
+        Spacer(Modifier.height(12.dp))
     }
 }
 
 @Composable
-private fun ProfileScreen(email: String, guest: Boolean, onLogin: () -> Unit, onLogout: () -> Unit) {
+private fun ProfileScreen(email: String, guest: Boolean, isDeveloper: Boolean, onLogin: () -> Unit, onLogout: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         SectionTitle("JOGADOR", "SEU PERFIL")
         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Panel2).padding(20.dp), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Box(Modifier.size(72.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Purple, Pink))), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Person, null, tint = Color.White, modifier = Modifier.size(38.dp)) }
-                Text(if (guest) "Jogador convidado" else email.substringBefore('@'), color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                Text(if (guest) "Jogador convidado" else email.substringBefore('@'), color = Color.White, fontFamily = DisplayFont, fontSize = 20.sp)
                 Text(if (guest) "Progresso salvo neste aparelho" else email, color = Muted, fontSize = 11.sp)
+                if (isDeveloper) {
+                    Text("DEVELOPER ACCESS • AUTORIZADO PELO SUPABASE", color = Color(0xFFFFDE4D), fontFamily = DisplayFont, fontSize = 10.sp, letterSpacing = .6.sp)
+                }
             }
         }
         ActionCard(Icons.Rounded.Security, "Conta e segurança", "Autenticação por e-mail e senha com Supabase.", onLogin)
         ActionCard(Icons.Rounded.Logout, if (guest) "Entrar em uma conta" else "Sair da conta", "Gerencie a sessão neste dispositivo.", onLogout)
-        Text("Retroboy Arcade • versão 0.1.0-alpha", color = Muted, fontSize = 10.sp)
+        Text("Retroboy Arcade • versão 0.2.0-alpha", color = Muted, fontSize = 10.sp)
     }
 }
 
@@ -364,8 +456,8 @@ private fun AuthScreen(createAccount: Boolean, onToggleMode: () -> Unit, onGuest
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(70.dp).clip(RoundedCornerShape(22.dp)).background(Brush.linearGradient(listOf(Purple, Pink))), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.SportsEsports, null, tint = Color.White, modifier = Modifier.size(38.dp)) }
         Spacer(Modifier.height(17.dp))
-        Text("RETROBOY ARCADE", color = Color.White, fontWeight = FontWeight.Black, fontSize = 23.sp, letterSpacing = 2.sp)
-        Text("PLAY THE CLASSICS. CONNECT THE WORLD.", color = Cyan, fontSize = 9.sp, letterSpacing = 1.sp)
+        Text("RETROBOY", color = Color.White, fontFamily = BrandFont, fontSize = 34.sp, letterSpacing = 1.8.sp)
+        Text("ARCADE  •  PLAY THE CLASSICS", color = Cyan, fontFamily = DisplayFont, fontSize = 14.sp, letterSpacing = 1.3.sp)
         Spacer(Modifier.height(30.dp))
         Text(if (createAccount) "CRIAR CONTA" else "BEM-VINDO DE VOLTA", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
         Spacer(Modifier.height(16.dp))

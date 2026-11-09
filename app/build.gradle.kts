@@ -31,9 +31,11 @@ android {
         applicationId = "com.retroboy.arcade"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-alpha"
+        versionCode = 2
+        versionName = "0.2.0-alpha"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        externalNativeBuild { cmake { cppFlags += "-std=c++17" } }
         buildConfigField("String", "SUPABASE_URL", "\"${supabaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${supabaseAnonKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
         buildConfigField("String", "CATALOG_URL", "\"${catalogUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
@@ -50,6 +52,12 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
 }
 
 dependencies {
@@ -76,3 +84,10 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+
+val unpackRetroboyFonts = tasks.register<org.gradle.api.tasks.Copy>("unpackRetroboyFonts") {
+    from(zipTree(rootProject.file("artwork/retroboy-fonts.zip")))
+    into(layout.buildDirectory.dir("generated/retroboyFonts/res"))
+}
+android.sourceSets.getByName("main").res.srcDir(layout.buildDirectory.dir("generated/retroboyFonts/res"))
+tasks.named("preBuild").configure { dependsOn(unpackRetroboyFonts) }

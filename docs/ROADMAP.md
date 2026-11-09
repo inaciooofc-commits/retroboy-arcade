@@ -37,3 +37,28 @@
 - [ ] Testes de consumo de bateria e memória
 - [ ] Testes de reconexão e integridade de saves
 - [ ] Assinatura de release e publicação
+
+
+## Fase 1.1 — Gerenciador de núcleos (0.2.0-alpha)
+- [x] Fontes Stranger e NightWork integradas como recursos Android.
+- [x] Catálogo dos núcleos oficiais FBNeo, gpSP e mGBA.
+- [x] Download e extração segura por ABI.
+- [x] Verificação de exports Libretro via dlopen/dlsym.
+- [x] Esquema seguro de papel developer no Supabase.
+- [ ] Criar projeto Supabase exclusivo e configurar secrets.
+- [ ] Criar usuário developer e atribuir role via SQL Editor.
+- [ ] Integrar runtime Libretro completo (vídeo, áudio, input, saves).
+
+## Fase 2 — Emulação real
+- [ ] Implementar frontend Libretro nativo e Surface/EGL.
+- [ ] Controles touch configuráveis e suporte a gamepad Bluetooth/USB.
+- [ ] Testar FBNeo com homebrew e ROMs do usuário.
+- [ ] Testar gpSP e mGBA com homebrew e saves.
+- [ ] Verificar estabilidade em aparelhos Android de entrada e intermediários.
+
+## Fase 3 — Multiplayer
+- [ ] Reutilizar/portar protocolo de netplay compatível com Libretro.
+- [ ] FBNeo netplay em duas casas, incluindo relay/NAT traversal.
+- [ ] gpSP Wireless Adapter com Pokémon FireRed/LeafGreen em duas casas.
+- [ ] Supabase Realtime para salas/convites, não para transportar frames.
+- [ ] TURN/relay como fallback quando conexão direta falhar.
