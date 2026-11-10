@@ -152,7 +152,7 @@ private fun RetroboyApp() {
                         .onSuccess { path ->
                             val entry = GameEntry(
                                 id = "local-" + path.hashCode(), title = name, platform = platform,
-                                subtitle = platform.label + " • arquivo local", accent = when (platform) {
+                                subtitle = systemLabel(name, platform) + " • arquivo local", accent = when (platform) {
                                     Platform.GBA -> 0xFF00EFFF
                                     Platform.NEOGEO -> 0xFFFF2DD6
                                     else -> 0xFF8F5BFF
@@ -821,7 +821,7 @@ private fun GameInfoDialog(
         title = { Text(game.title, color = Color.White, fontFamily = DisplayFont, fontSize = 20.sp) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text("SISTEMA  •  " + game.platform.label.uppercase(), color = Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("SISTEMA  •  " + systemLabel(game.localPath?.let { File(it).name } ?: game.title, game.platform).uppercase(), color = Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Text("NÚCLEO  •  " + coreTitle, color = Color.White, fontSize = 12.sp)
                 if (game.platform == Platform.GBA && game.localPath?.endsWith(".gba", ignoreCase = true) == true) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -869,7 +869,7 @@ private fun loadImportedGames(prefs: android.content.SharedPreferences): List<Ga
             id = "local-" + raw.hashCode(),
             title = file.name,
             platform = platform,
-            subtitle = platform.label + " • arquivo local",
+            subtitle = systemLabel(file.name, platform) + " • arquivo local",
             accent = when (platform) {
                 Platform.GBA -> 0xFF00EFFF
                 Platform.NEOGEO -> 0xFFFF2DD6
@@ -898,6 +898,15 @@ private fun saveImportedGames(prefs: android.content.SharedPreferences, games: L
         .putStringSet("imported_paths", games.mapNotNull { it.localPath }.toSet())
         .putStringSet("imported_uris", games.filter { it.localPath == null }.mapNotNull { it.sourceUri }.toSet())
         .apply()
+}
+
+private fun systemLabel(filename: String, platform: Platform): String {
+    return when (filename.substringAfterLast('.', "").lowercase()) {
+        "gb" -> "Game Boy"
+        "gbc" -> "Game Boy Color"
+        "gba" -> "Game Boy Advance"
+        else -> platform.label
+    }
 }
 
 private fun detectPlatform(filename: String): Platform? {
