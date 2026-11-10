@@ -9,9 +9,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.io.Closeable
 import java.io.File
 import java.io.IOException
@@ -159,24 +161,23 @@ class LibretroGameSession(
         NativeLibretroRuntime.nativePause(true)
         audioJob?.cancel()
         saveJob?.cancel()
-        val track = audioTrack
-        audioScope.launch {
-            audioJob?.join()
-            saveJob?.join()
-            runCatching {
-                val battery = NativeLibretroRuntime.nativeGetSaveRam()
-                if (battery != null && battery.isNotEmpty()) {
-                    batteryFile.parentFile?.mkdirs()
-                    batteryFile.writeBytes(battery)
-                }
-            }
-            runCatching { track?.pause() }
-            runCatching { track?.flush() }
-            runCatching { track?.stop() }
-            track?.release()
-            audioTrack = null
-            NativeLibretroRuntime.nativeDestroy()
-            audioScope.cancel()
+        runCatching { audioTrack?.pause() }
+        runCatching { audioTrack?.flush() }
+        runBlocking(Dispatchers.IO) {
+            audioJob?.cancelAndJoin()
+            saveJob?.cancelAndJoin()
         }
+        runCatching {
+            val battery = NativeLibretroRuntime.nativeGetSaveRam()
+            if (battery != null && battery.isNotEmpty()) {
+                batteryFile.parentFile?.mkdirs()
+                batteryFile.writeBytes(battery)
+            }
+        }
+        runCatching { audioTrack?.stop() }
+        audioTrack?.release()
+        audioTrack = null
+        NativeLibretroRuntime.nativeDestroy()
+        audioScope.cancel()
     }
 }
