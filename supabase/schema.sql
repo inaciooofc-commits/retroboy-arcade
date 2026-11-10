@@ -110,10 +110,7 @@ begin
   insert into public.user_roles (user_id, role)
   values (
     new.id,
-    case
-      when lower(coalesce(new.email, '')) = lower('inaciooofc@gmail.com') then 'developer'
-      else 'player'
-    end
+    'player'
   )
   on conflict (user_id) do nothing;
   return new;

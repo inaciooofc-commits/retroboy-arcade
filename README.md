@@ -57,7 +57,7 @@ O app não distribui jogos comerciais nem BIOS protegidas. Importe somente arqui
 3. Configure os secrets `SUPABASE_URL` e `SUPABASE_ANON_KEY` no GitHub Actions.
 4. Instale o APK compilado com esses valores.
 5. Cadastre-se no app com o e-mail developer autorizado e uma senha nova e exclusiva, definida diretamente no aparelho.
-6. Confirme o e-mail. O trigger do banco atribui a role developer.
+6. Confirme o e-mail. O proprietário do projeto executa `supabase/grant_developer.sql` para conceder a role developer.
 
 Nunca coloque senha, `service_role` ou secret key no APK, no repositório ou no GitHub Actions. Consulte [Conta developer](docs/DEVELOPER_ACCOUNT.md).
 

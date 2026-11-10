@@ -12,7 +12,7 @@ A conta developer é uma conta comum do Supabase Auth com uma role privilegiada 
 4. Compilar e instalar o APK com essas configurações.
 5. Na tela de cadastro, criar a conta usando `inaciooofc@gmail.com` e uma senha nova e exclusiva, digitada diretamente no aparelho.
 6. Confirmar o endereço de e-mail e entrar no app.
-7. O trigger do banco concede automaticamente `developer` a esse endereço. Para uma conta que já existia antes da migração, executar `supabase/grant_developer.sql` uma vez.
+7. O trigger cria a role básica `player`. Depois da confirmação do e-mail, o proprietário do projeto executa `supabase/grant_developer.sql` para conceder `developer`. O script bloqueia contas não confirmadas.
 
 ## Segurança
 
