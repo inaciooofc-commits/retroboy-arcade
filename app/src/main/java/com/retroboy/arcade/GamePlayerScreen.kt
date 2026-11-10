@@ -249,8 +249,12 @@ fun GamePlayerScreen(
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TouchControl("Y", 1, sessionRef, Modifier.size(48.dp), PlayerPurple)
-                    TouchControl("X", 9, sessionRef, Modifier.size(48.dp), PlayerPurple)
+                    TouchControl("Y", 1, sessionRef, Modifier.size(44.dp), PlayerPurple)
+                    TouchControl("X", 9, sessionRef, Modifier.size(44.dp), PlayerPurple)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TouchControl("L", 10, sessionRef, Modifier.size(36.dp), PlayerMuted)
+                    TouchControl("R", 11, sessionRef, Modifier.size(36.dp), PlayerMuted)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TouchControl("B", 0, sessionRef, Modifier.size(48.dp), PlayerCyan)
