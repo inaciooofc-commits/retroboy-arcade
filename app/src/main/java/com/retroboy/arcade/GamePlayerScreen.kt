@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.retroboy.arcade.emulation.LibretroGameSession
+import com.retroboy.arcade.data.SecurePrefs
 import com.retroboy.arcade.network.P2pRoomClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -87,6 +88,7 @@ fun GamePlayerScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val securePrefs = remember(context) { SecurePrefs(context) }
     val sessionRef = remember { mutableStateOf<LibretroGameSession?>(null) }
     var status by remember { mutableStateOf("Preparando o núcleo…") }
     var paused by remember { mutableStateOf(false) }
@@ -155,6 +157,8 @@ fun GamePlayerScreen(
                 isHost = host,
                 gameHash = gameHash,
                 coreId = coreId,
+                supabaseUrl = securePrefs.getString("supabase_url"),
+                supabaseAnonKey = securePrefs.getString("supabase_anon_key"),
                 onStatus = { message ->
                     scope.launch(Dispatchers.Main) { p2pStatus = message }
                 },

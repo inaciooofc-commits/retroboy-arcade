@@ -82,6 +82,8 @@ private fun RetroboyApp() {
     val securePrefs = remember(context) { SecurePrefs(context) }
     var retroUsername by remember { mutableStateOf(securePrefs.getString("ra_username")) }
     var retroApiKey by remember { mutableStateOf(securePrefs.getString("ra_api_key")) }
+    var supabaseUrl by remember { mutableStateOf(securePrefs.getString("supabase_url")) }
+    var supabaseConfigured by remember { mutableStateOf(securePrefs.getString("supabase_anon_key").isNotBlank()) }
     var email by remember { mutableStateOf("") }
     var guest by remember { mutableStateOf(prefs.getBoolean("guest", false)) }
     var tab by remember { mutableStateOf("Início") }
@@ -256,7 +258,18 @@ private fun RetroboyApp() {
                                     retroApiKey = key
                                 }
                             )
-                            "Online" -> OnlineScreen(importedCount = importedGames.size, onOpenGames = { tab = "Jogos" })
+                            "Online" -> OnlineScreen(
+                                importedCount = importedGames.size,
+                                supabaseUrl = supabaseUrl,
+                                supabaseConfigured = supabaseConfigured,
+                                onSaveSupabaseCredentials = { url, key ->
+                                    securePrefs.putString("supabase_url", url.trim())
+                                    securePrefs.putString("supabase_anon_key", key.trim())
+                                    supabaseUrl = url.trim()
+                                    supabaseConfigured = key.isNotBlank()
+                                },
+                                onOpenGames = { tab = "Jogos" }
+                            )
                             "Downloads" -> DownloadsScreen(
                                 count = catalogCount, message = catalogMessage, loading = assetsLoading,
                                 installedCoreIds = installedCoreIds, installingCore = installingCore,
@@ -870,7 +883,15 @@ private fun authFieldColors() = OutlinedTextFieldDefaults.colors(
 )
 
 @Composable
-private fun OnlineScreen(importedCount: Int, onOpenGames: () -> Unit) {
+private fun OnlineScreen(
+    importedCount: Int,
+    supabaseUrl: String,
+    supabaseConfigured: Boolean,
+    onSaveSupabaseCredentials: (String, String) -> Unit,
+    onOpenGames: () -> Unit
+) {
+    var url by remember(supabaseUrl) { mutableStateOf(supabaseUrl) }
+    var anonKey by remember { mutableStateOf("") }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -907,6 +928,43 @@ private fun OnlineScreen(importedCount: Int, onOpenGames: () -> Unit) {
             }
         }
         Text("Ambos precisam usar o mesmo arquivo de jogo e o mesmo núcleo. Redes com CGNAT restritivo podem precisar de um servidor TURN configurado no build.", color = Muted, fontSize = 9.sp)
+        SectionTitle("CONFIGURAÇÃO P2P", "SINALIZAÇÃO SEGURA")
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Panel).padding(14.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text(
+                    if (supabaseConfigured) "Supabase configurado neste aparelho."
+                    else "Informe a URL do seu projeto Supabase e a chave pública (publishable/anon) para habilitar a criação de salas.",
+                    color = if (supabaseConfigured) Cyan else Muted, fontSize = 9.sp
+                )
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it.trim() },
+                    label = { Text("Project URL (https://…supabase.co)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = authFieldColors()
+                )
+                OutlinedTextField(
+                    value = anonKey,
+                    onValueChange = { anonKey = it.trim() },
+                    label = { Text(if (supabaseConfigured) "Nova chave pública (opcional para atualizar)" else "Publishable key / anon key") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = authFieldColors()
+                )
+                Button(
+                    onClick = {
+                        onSaveSupabaseCredentials(url, anonKey)
+                        anonKey = ""
+                    },
+                    enabled = url.startsWith("https://") && anonKey.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Purple)
+                ) { Text("SALVAR CONFIGURAÇÃO P2P") }
+                Text("A chave é guardada criptografada pelo Android Keystore. Nunca use service_role ou secret key no aplicativo.", color = Muted, fontSize = 8.sp)
+            }
+        }
     }
 }
 

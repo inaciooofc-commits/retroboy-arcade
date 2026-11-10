@@ -23,10 +23,14 @@ class P2pRoomClient(
     private val isHost: Boolean,
     private val gameHash: String,
     private val coreId: String,
+    supabaseUrl: String = BuildConfig.SUPABASE_URL,
+    supabaseAnonKey: String = BuildConfig.SUPABASE_ANON_KEY,
     private val onStatus: (String) -> Unit,
     private val onRemoteInput: (Int) -> Unit
 ) : Closeable {
     private val appContext = context.applicationContext
+    private val projectUrl = supabaseUrl.ifBlank { BuildConfig.SUPABASE_URL }
+    private val publicKey = supabaseAnonKey.ifBlank { BuildConfig.SUPABASE_ANON_KEY }
     private val room = roomCode.uppercase().filter { it.isLetterOrDigit() }
     private val topic = "realtime:retroboy_${room.lowercase()}"
     private val localId = UUID.randomUUID().toString()
@@ -73,7 +77,7 @@ class P2pRoomClient(
         check(!closed.get()) { "A sala P2P já foi encerrada." }
         require(room.matches(Regex("[A-Z0-9]{8}"))) { "O código da sala precisa ter 8 caracteres." }
         require(gameHash.isNotBlank()) { "Não foi possível identificar a ROM." }
-        require(BuildConfig.SUPABASE_URL.startsWith("https://") && BuildConfig.SUPABASE_ANON_KEY.isNotBlank()) {
+        require(projectUrl.startsWith("https://") && publicKey.isNotBlank()) {
             "Configure SUPABASE_URL e SUPABASE_ANON_KEY para habilitar o P2P."
         }
 
@@ -123,13 +127,13 @@ class P2pRoomClient(
     }
 
     private fun connectSignaling() {
-        val base = BuildConfig.SUPABASE_URL.trimEnd('/')
+        val base = projectUrl.trimEnd('/')
         val socketBase = when {
             base.startsWith("https://") -> "wss://" + base.removePrefix("https://")
             base.startsWith("http://") -> "ws://" + base.removePrefix("http://")
             else -> throw IllegalStateException("SUPABASE_URL inválida.")
         }
-        val key = URLEncoder.encode(BuildConfig.SUPABASE_ANON_KEY, "UTF-8")
+        val key = URLEncoder.encode(publicKey, "UTF-8")
         val request = Request.Builder()
             .url("\$socketBase/realtime/v1/websocket?apikey=\$key&vsn=1.0.0")
             .build()
