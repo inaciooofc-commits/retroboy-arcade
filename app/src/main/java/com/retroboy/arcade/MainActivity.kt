@@ -823,7 +823,7 @@ private fun GameInfoDialog(
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("SISTEMA  •  " + game.platform.label.uppercase(), color = Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Text("NÚCLEO  •  " + coreTitle, color = Color.White, fontSize = 12.sp)
-                if (game.platform == Platform.GBA) {
+                if (game.platform == Platform.GBA && game.localPath?.endsWith(".gba", ignoreCase = true) == true) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Modo Wireless Adapter", color = Color.White, fontSize = 11.sp)
@@ -902,8 +902,8 @@ private fun saveImportedGames(prefs: android.content.SharedPreferences, games: L
 
 private fun detectPlatform(filename: String): Platform? {
     return when (filename.substringAfterLast('.', "").lowercase()) {
-        "gba" -> Platform.GBA
-        "zip" -> if (filename.lowercase().contains("neogeo")) Platform.NEOGEO else Platform.ARCADE
+        "gba", "gb", "gbc" -> Platform.GBA
+        "zip", "7z" -> if (filename.lowercase().contains("neogeo")) Platform.NEOGEO else Platform.ARCADE
         else -> null
     }
 }

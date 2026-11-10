@@ -81,7 +81,12 @@ fun GamePlayerScreen(
     var status by remember { mutableStateOf("Preparando o núcleo…") }
     var paused by remember { mutableStateOf(false) }
     var surfaceReady by remember { mutableStateOf(false) }
-    val gameAspectRatio = if (gamePath.endsWith(".gba", ignoreCase = true)) 3f / 2f else 4f / 3f
+    val gameExtension = gamePath.substringAfterLast('.', "").lowercase()
+    val gameAspectRatio = when (gameExtension) {
+        "gba" -> 3f / 2f
+        "gb", "gbc" -> 10f / 9f
+        else -> 4f / 3f
+    }
     val stateFile = remember(gamePath, saveDirectory) { File(saveDirectory, safeStateFileName(File(gamePath).nameWithoutExtension)) }
     var hasSaveState by remember { mutableStateOf(stateFile.isFile) }
 

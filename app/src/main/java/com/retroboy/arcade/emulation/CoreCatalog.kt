@@ -23,7 +23,7 @@ object CoreCatalog {
         CoreDefinition(
             id = "gpsp",
             title = "gpSP",
-            systems = "Game Boy Advance",
+            systems = "Game Boy • Game Boy Color • Game Boy Advance",
             description = "Core a testar para trocas Pokémon via GBA Wireless Adapter; não é link cable genérico.",
             license = "GPL-2.0",
             netplay = true

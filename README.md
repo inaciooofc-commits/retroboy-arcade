@@ -89,7 +89,7 @@ A versão atual ainda não executa ROMs. O gerenciador baixa e verifica as bibli
 - [x] Saída de áudio estéreo via AudioTrack e buffer nativo.
 - [x] Input joypad touch e gamepad Bluetooth/USB.
 - [x] Save states e gravação periódica da SRAM do core.
-- [x] Importação local de ROMs .gba e .zip, com cópia para armazenamento privado.
+- [x] Importação local de ROMs .gba/.gb/.gbc e .zip/.7z, com cópia para armazenamento privado.
 - [x] Importação de BIOS para a pasta system/.
 - [ ] Testar FBNeo/Neo Geo, mGBA e gpSP com arquivos legais/homebrew em aparelhos físicos.
 - [ ] Implementar multiplayer online entre casas.
