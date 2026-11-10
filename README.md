@@ -47,7 +47,7 @@ Referências: <https://docs.libretro.com/development/retroarch/netplay/> e <http
 O app não distribui jogos comerciais nem BIOS protegidas. Importe somente arquivos que você tenha direito de usar.
 
 - Para arcade/Neo Geo, importe ROMs em `.zip` ou `.7z`. Alguns jogos precisam de BIOS; para Neo Geo, o arquivo usual é `neogeo.zip`.
-- Para GBA, `gba_bios.bin` é opcional para mGBA e gpSP.
+- Para mGBA, `gba_bios.bin`, `gb_bios.bin` e `gbc_bios.bin` são opcionais; o frontend ativa `mgba_use_bios=ON` quando disponível. Para gpSP, `gba_bios.bin` é opcional.
 - Os arquivos de sistema ficam em `filesDir/system/`; saves ficam em `filesDir/saves/`.
 
 ## Supabase e conta developer

@@ -140,8 +140,25 @@ static bool environmentCallback(unsigned command, void* data) {
         case RETRO_ENVIRONMENT_SET_ROTATION:
         case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
             return true;
-        case RETRO_ENVIRONMENT_GET_VARIABLE:
+        case RETRO_ENVIRONMENT_GET_VARIABLE: {
+            if (!data) return false;
+            auto* variable = static_cast<retro_variable*>(data);
+            if (!variable->key) return false;
+            // Use the user's BIOS when it is present; this is mGBA's documented option key.
+            if (std::strcmp(variable->key, "mgba_use_bios") == 0) {
+                variable->value = "ON";
+                return true;
+            }
+            if (std::strcmp(variable->key, "mgba_skip_bios") == 0) {
+                variable->value = "OFF";
+                return true;
+            }
+            if (std::strcmp(variable->key, "mgba_frameskip") == 0) {
+                variable->value = "0";
+                return true;
+            }
             return false;
+        }
         case RETRO_ENVIRONMENT_SET_GEOMETRY: {
             if (!data) return false;
             auto* geometry = static_cast<retro_game_geometry*>(data);

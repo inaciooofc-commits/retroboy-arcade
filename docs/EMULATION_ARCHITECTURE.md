@@ -28,7 +28,7 @@ A CI compila o frontend. A execução real dos jogos ainda precisa ser validada 
 ## Conteúdo e BIOS
 
 - Extensões aceitas pelo importador: `.gba`, `.gb`, `.gbc`, `.zip` e `.7z`.
-- mGBA aceita GB, GBC e GBA; `gba_bios.bin` é opcional.
+- mGBA aceita GB, GBC e GBA; `gba_bios.bin`, `gb_bios.bin` e `gbc_bios.bin` são opcionais. O frontend ativa a opção `mgba_use_bios=ON` para aproveitar a BIOS importada.
 - gpSP aceita GBA; `gba_bios.bin` é opcional.
 - FBNeo aceita romsets ZIP/7z. Alguns sistemas precisam de BIOS; para Neo Geo, importe `neogeo.zip`.
 - O importador de BIOS copia arquivos do usuário para `filesDir/system/`.

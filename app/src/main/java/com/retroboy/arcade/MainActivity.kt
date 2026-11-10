@@ -554,7 +554,7 @@ private fun DownloadsScreen(
             }
         }
         if (biosMessage.isNotBlank()) Text(biosMessage, color = Cyan, fontSize = 9.sp)
-        Text("BIOS opcionais: gba_bios.bin para GBA; para Neo Geo, importe neogeo.zip. O Retroboy não fornece BIOS nem ROMs comerciais.", color = Muted, fontSize = 9.sp)
+        Text("BIOS opcionais: gba_bios.bin, gb_bios.bin e gbc_bios.bin; para Neo Geo, importe neogeo.zip. O app ativa o uso da BIOS mGBA quando disponível.", color = Muted, fontSize = 9.sp)
         Text("O runtime Libretro para partidas individuais já está integrado: vídeo, áudio, controles touch/gamepad e saves. A compatibilidade precisa ser validada em aparelho real; o multiplayer entre casas ainda está em desenvolvimento.", color = Muted, fontSize = 10.sp)
         Text("O catálogo de capas e conteúdos é separado dos núcleos, que são baixados do Buildbot oficial Libretro.", color = Muted, fontSize = 9.sp)
         Spacer(Modifier.height(12.dp))
