@@ -82,3 +82,19 @@
 - [ ] gpSP Wireless Adapter para FireRed; validar trocas e batalhas em dois aparelhos.
 - [ ] Supabase Realtime para salas, convites e sinalização WebRTC.
 - [ ] TURN/relay gerenciado para redes CGNAT.
+
+
+## Fase 2 — Runtime single-player
+- [x] Host Libretro nativo e carregamento de cores.
+- [x] Renderização de vídeo em SurfaceView.
+- [x] Áudio estéreo por AudioTrack.
+- [x] Controles touch e gamepad Bluetooth/USB.
+- [x] Save states e persistência de SRAM.
+- [x] Importação de ROMs e BIOS próprias.
+- [ ] Validar FBNeo, mGBA e gpSP com jogos reais em aparelhos físicos.
+
+## Fase 3 — Multiplayer entre casas
+- [ ] Integrar protocolo netplay RetroArch/FBNeo.
+- [ ] Validar gpSP Wireless Adapter em FireRed para trocas e batalhas.
+- [ ] Supabase Realtime para salas, convites e sinalização WebRTC.
+- [ ] TURN/relay gerenciado para redes CGNAT.

@@ -63,12 +63,12 @@ A integração de FBNeo, gpSP e demais componentes deve respeitar a licença de 
 
 ## Emulação — status honesto da versão 0.2.0-alpha
 
-A tela Downloads agora pode baixar e validar as bibliotecas oficiais FBNeo, gpSP e mGBA para Android ARM64/ARMv7. A validação confirma que a biblioteca abre e exporta as funções principais da API Libretro. Isso ainda não é o runtime que renderiza e executa um jogo; o frontend Libretro (vídeo, áudio, input, save states e ciclo retro_run) continua sendo a próxima etapa.
+A tela Downloads baixa e valida as bibliotecas oficiais FBNeo, gpSP e mGBA para Android ARM64, ARMv7 e x86_64. O frontend nativo Libretro já está integrado: carrega o core e o conteúdo, executa retro_run, renderiza vídeo em SurfaceView, envia áudio para AudioTrack, recebe controles touch/gamepad e persiste save states e SRAM. A compilação CI foi aprovada; a validação de compatibilidade de cada jogo ainda depende de testes em aparelho real.
 
 - Neo Geo/Arcade: FBNeo é o núcleo principal e suporta netplay, mas sua licença é não comercial.
 - GBA offline: mGBA é a opção de precisão/compatibilidade.
 - Pokémon FireRed online: gpSP é a opção experimental indicada por oferecer netplay e emulação do adaptador sem fio GBA. Os modos de troca/batalha precisam ser validados com duas cópias idênticas do jogo.
-- A sincronização de partidas não está ativada nesta versão.
+- A sincronização de partidas entre casas não está ativada nesta versão.
 
 Veja docs/EMULATION_ARCHITECTURE.md, docs/DEVELOPER_ACCOUNT.md e docs/VISUAL_IDENTITY.md.
 
@@ -80,3 +80,16 @@ O perfil inclui quatro avatares do pacote gráfico, moldura neon, patente inicia
 ## Emulação e multiplayer
 
 A versão atual ainda não executa ROMs. O gerenciador baixa e verifica as bibliotecas Libretro; falta concluir o frontend que chama `retro_run` e trata vídeo, áudio, input e saves. Para GBA, mGBA é a escolha offline; gpSP deve ser testado especificamente para o Wireless Adapter de FireRed. O netplay genérico não equivale a link cable GBA.
+
+
+## Estado do runtime (build 0.2.0-alpha)
+
+- [x] Host Libretro nativo com carregamento dinâmico de cores.
+- [x] Renderização de vídeo em Android SurfaceView (0RGB1555, RGB565 e XRGB8888).
+- [x] Saída de áudio estéreo via AudioTrack e buffer nativo.
+- [x] Input joypad touch e gamepad Bluetooth/USB.
+- [x] Save states e gravação periódica da SRAM do core.
+- [x] Importação local de ROMs .gba e .zip, com cópia para armazenamento privado.
+- [x] Importação de BIOS para a pasta system/.
+- [ ] Testar FBNeo/Neo Geo, mGBA e gpSP com arquivos legais/homebrew em aparelhos físicos.
+- [ ] Implementar multiplayer online entre casas.

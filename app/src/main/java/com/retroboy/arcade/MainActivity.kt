@@ -516,7 +516,7 @@ private fun DownloadsScreen(
                     Text(core.title, color = Color.White, fontFamily = DisplayFont, fontSize = 16.sp)
                     Text(core.systems, color = Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Text(core.description, color = Muted, fontSize = 9.sp)
-                    Text("Licença: " + core.license + if (core.netplay) " • Netplay suportado" else " • Uso local", color = Muted, fontSize = 8.sp)
+                    Text("Licença: " + core.license + if (core.netplay) " • Core com netplay upstream" else " • Core sem netplay upstream", color = Muted, fontSize = 8.sp)
                 }
                 Spacer(Modifier.width(6.dp))
                 if (installed) {

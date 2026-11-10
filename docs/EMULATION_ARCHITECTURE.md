@@ -4,16 +4,16 @@
 
 | Sistema | Núcleo recomendado | Motivo | Situação |
 |---|---|---|---|
-| Neo Geo | FinalBurn Neo (FBNeo) | Bom suporte a Neo Geo e arcade; netplay disponível | Download/probe no 0.2; runtime pendente |
-| Arcade | FinalBurn Neo (FBNeo) | Ampla cobertura de placas clássicas e netplay | Download/probe no 0.2; runtime pendente |
-| GBA offline | mGBA | Prioridade em precisão e compatibilidade | Download/probe no 0.2; runtime pendente |
-| Pokémon FireRed — trocas/batalhas sem fio | gpSP | O Libretro cita gpSP para emular o GBA Wireless Adapter; modos de FireRed precisam de teste real | Download/probe no 0.2; teste de jogo pendente |
+| Neo Geo | FinalBurn Neo (FBNeo) | Bom suporte a Neo Geo e arcade; netplay upstream | Runtime single-player integrado; validar BIOS neogeo.zip e ROMs no aparelho |
+| Arcade | FinalBurn Neo (FBNeo) | Ampla cobertura de placas clássicas e netplay upstream | Runtime single-player integrado; validar ROMs no aparelho |
+| GBA offline | mGBA | Prioridade em precisão e compatibilidade | Runtime single-player integrado; validar ROMs e SRAM no aparelho |
+| Pokémon FireRed — trocas/batalhas sem fio | gpSP | O Libretro cita gpSP para emular o GBA Wireless Adapter; modos de FireRed precisam de teste real | Runtime single-player integrado; Wireless Adapter ainda experimental e não testado |
 
 ## Por que Libretro
 
-O Libretro separa o núcleo de emulação do frontend. O Retroboy mantém sua própria interface Android em Kotlin/Compose e usa bibliotecas nativas compatíveis com a API Libretro. O frontend precisa fornecer callbacks de vídeo, áudio, input, ambiente, ciclo de execução, carregamento de conteúdo e gerenciamento de saves.
+O Libretro separa o núcleo de emulação do frontend. O Retroboy mantém sua própria interface Android em Kotlin/Compose e usa bibliotecas nativas compatíveis com a API Libretro. O frontend fornece callbacks de vídeo, áudio, input e ambiente, ciclo retro_run, carregamento de conteúdo, gerenciamento de save states e SRAM.
 
-Nesta versão, o gerenciador baixa os pacotes Android ARM64/ARMv7 diretamente do buildbot oficial, extrai a biblioteca e verifica os exports essenciais via dlopen/dlsym. Isso valida a biblioteca, mas ainda não executa ROMs. A próxima etapa é implementar o host Libretro nativo com EGL/Surface, áudio, controles e retro_run.
+O gerenciador baixa os pacotes Android ARM64/ARMv7/x86_64 diretamente do buildbot oficial, extrai a biblioteca e verifica os exports essenciais via dlopen/dlsym. O frontend nativo Libretro já carrega o core e o arquivo, inicializa callbacks de ambiente, vídeo, áudio e input, executa retro_run em uma thread dedicada, renderiza no SurfaceView e envia áudio estéreo para AudioTrack. O host também implementa pause/reset, controles joypad, save states e leitura/gravação de SRAM. A CI compila essa integração; os testes funcionais com jogos reais ainda precisam ocorrer em aparelho Android.
 
 ## Pokémon FireRed e multiplayer GBA
 
@@ -54,3 +54,15 @@ mGBA é a opção local/offline recomendada para GBA, mas seu core Libretro não
 - Para Neo Geo/Arcade, FBNeo anuncia suporte a netplay no ecossistema RetroArch, mas o Retroboy ainda precisa de um frontend/protocolo compatível.
 - O Supabase Realtime deve cuidar de contas, convites e sinalização, não transportar o vídeo/áudio nem o estado completo da emulação.
 - Para funcionar entre quaisquer duas casas, inclusive redes CGNAT, será necessário um TURN/relay gerenciado ou um relay de netplay compatível. Sem isso, conexão direta não é garantida.
+
+
+## Implementação atual do frontend
+
+- `retro_set_environment` e callbacks de vídeo/áudio/input são registrados antes de `retro_init`.
+- `retro_load_game` recebe caminho absoluto quando o core exige full path e bytes do arquivo quando aceita conteúdo em memória.
+- O vídeo é convertido para RGBA_8888 e apresentado em `SurfaceView`.
+- O áudio estéreo PCM 16-bit é drenado de um buffer nativo para `AudioTrack`.
+- Controles touch e gamepads Android são mapeados para os IDs de joypad Libretro.
+- Save states usam `retro_serialize`/`retro_unserialize`; bateria usa `RETRO_MEMORY_SAVE_RAM` e é persistida em `filesDir/saves/`.
+- BIOS do usuário ficam em `filesDir/system/`. Para Neo Geo, importe `neogeo.zip`.
+- O runtime é single-player nesta etapa. A existência de netplay no core não significa que o frontend Retroboy já implemente a conexão.
