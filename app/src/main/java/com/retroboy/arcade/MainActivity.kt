@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,11 +29,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.retroboy.arcade.data.AchievementCatalog
@@ -45,6 +49,7 @@ import com.retroboy.arcade.model.Achievement
 import com.retroboy.arcade.model.GameEntry
 import com.retroboy.arcade.model.Platform
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 private val Night = Color(0xFF070918)
 private val Panel = Color(0xFF111631)
@@ -87,6 +92,13 @@ private fun RetroboyApp() {
     var catalogCount by remember { mutableIntStateOf(0) }
     var catalogMessage by remember { mutableStateOf("Catálogo ainda não consultado") }
     var assetsLoading by remember { mutableStateOf(false) }
+    var displayName by remember { mutableStateOf(prefs.getString("display_name", "").orEmpty()) }
+    var selectedAvatar by remember { mutableStateOf(prefs.getString("avatar", "fox") ?: "fox") }
+    val playerTag = remember {
+        prefs.getString("player_tag", null) ?: ("RB-" + UUID.randomUUID().toString().take(8).uppercase()).also {
+            prefs.edit().putString("player_tag", it).apply()
+        }
+    }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri != null) {
@@ -173,9 +185,22 @@ private fun RetroboyApp() {
                                     }
                                 }
                             )
-                            else -> ProfileScreen(email, guest, isDeveloper, onLogin = { authVisible = true }, onLogout = {
-                                email = ""; guest = false; isDeveloper = false; prefs.edit().clear().apply(); authVisible = true
-                            })
+                            else -> ProfileScreen(
+                                email = email, guest = guest, isDeveloper = isDeveloper,
+                                displayName = displayName, avatar = selectedAvatar, playerTag = playerTag,
+                                importedGames = importedGames.size, totalAchievements = AchievementCatalog.all.size,
+                                onSaveProfile = { name, avatar ->
+                                    displayName = name
+                                    selectedAvatar = avatar
+                                    prefs.edit().putString("display_name", name).putString("avatar", avatar).apply()
+                                },
+                                onLogin = { authVisible = true },
+                                onLogout = {
+                                    email = ""; guest = false; isDeveloper = false
+                                    prefs.edit().remove("email").putBoolean("guest", false).apply()
+                                    authVisible = true
+                                }
+                            )
                         }
                     }
                     BottomBar(tab = tab, onSelect = { tab = it })
@@ -430,22 +455,190 @@ private fun DownloadsScreen(
 }
 
 @Composable
-private fun ProfileScreen(email: String, guest: Boolean, isDeveloper: Boolean, onLogin: () -> Unit, onLogout: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        SectionTitle("JOGADOR", "SEU PERFIL")
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Panel2).padding(20.dp), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Box(Modifier.size(72.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Purple, Pink))), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Person, null, tint = Color.White, modifier = Modifier.size(38.dp)) }
-                Text(if (guest) "Jogador convidado" else email.substringBefore('@'), color = Color.White, fontFamily = DisplayFont, fontSize = 20.sp)
-                Text(if (guest) "Progresso salvo neste aparelho" else email, color = Muted, fontSize = 11.sp)
-                if (isDeveloper) {
-                    Text("DEVELOPER ACCESS • AUTORIZADO PELO SUPABASE", color = Color(0xFFFFDE4D), fontFamily = DisplayFont, fontSize = 10.sp, letterSpacing = .6.sp)
+private fun ProfileScreen(
+    email: String,
+    guest: Boolean,
+    isDeveloper: Boolean,
+    displayName: String,
+    avatar: String,
+    playerTag: String,
+    importedGames: Int,
+    totalAchievements: Int,
+    onSaveProfile: (String, String) -> Unit,
+    onLogin: () -> Unit,
+    onLogout: () -> Unit
+) {
+    var editing by remember { mutableStateOf(false) }
+    var draftName by remember(displayName, email) {
+        mutableStateOf(displayName.ifBlank { email.substringBefore('@').ifBlank { "Jogador" } })
+    }
+    var draftAvatar by remember(avatar) { mutableStateOf(avatar) }
+    val visibleName = displayName.ifBlank { email.substringBefore('@').ifBlank { "Jogador" } }
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        SectionTitle("PLAYER PROFILE", "IDENTIDADE DO JOGADOR")
+        Box(
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(Brush.linearGradient(listOf(Color(0xFF34205C), Color(0xFF17233E), Color(0xFF10152B))))
+                .border(1.dp, Purple.copy(alpha = .45f), RoundedCornerShape(20.dp))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+                    PlayerAvatar(avatar = avatar, size = 72.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(visibleName, color = Color.White, fontFamily = DisplayFont, fontSize = 21.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(playerTag, color = Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                        Text(if (guest) "PERFIL LOCAL • CONVIDADO" else "JOGADOR RETROBOY", color = Muted, fontSize = 9.sp, letterSpacing = .8.sp)
+                        if (isDeveloper) {
+                            Text("DEVELOPER ACCESS • AUTORIZADO", color = Color(0xFFFFDE4D), fontFamily = DisplayFont, fontSize = 9.sp)
+                        }
+                    }
+                    IconButton(onClick = {
+                        draftName = visibleName
+                        draftAvatar = avatar
+                        editing = true
+                    }) {
+                        Icon(Icons.Rounded.Edit, contentDescription = "Editar perfil", tint = Cyan)
+                    }
                 }
+                Divider(color = Color.White.copy(alpha = .12f))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Image(
+                        painter = painterResource(R.drawable.rank_bronze),
+                        contentDescription = "Patente inicial",
+                        modifier = Modifier.size(46.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("NÍVEL 1  •  NOVATO", color = Color.White, fontFamily = DisplayFont, fontSize = 15.sp)
+                        Text("0 / 100 XP para o próximo nível", color = Muted, fontSize = 10.sp)
+                        Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF29314E))) {
+                            Box(Modifier.fillMaxWidth(0f).fillMaxHeight().background(Brush.horizontalGradient(listOf(Purple, Cyan))))
+                        }
+                    }
+                }
+                Text("Progresso e patente começam a contar quando as partidas forem executadas pelo emulador.", color = Muted, fontSize = 9.sp)
             }
         }
-        ActionCard(Icons.Rounded.Security, "Conta e segurança", "Autenticação por e-mail e senha com Supabase.", onLogin)
-        ActionCard(Icons.Rounded.Logout, if (guest) "Entrar em uma conta" else "Sair da conta", "Gerencie a sessão neste dispositivo.", onLogout)
+
+        SectionTitle("ESTATÍSTICAS", "SEU HISTÓRICO DE JOGO")
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatCard("BIBLIOTECA", importedGames.toString(), Icons.Rounded.VideogameAsset, Modifier.weight(1f))
+            StatCard("PARTIDAS", "0", Icons.Rounded.SportsEsports, Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatCard("CONQUISTAS", "0 / " + totalAchievements, Icons.Rounded.EmojiEvents, Modifier.weight(1f))
+            StatCard("AMIGOS", "0", Icons.Rounded.Groups, Modifier.weight(1f))
+        }
+
+        SectionTitle("MEDALHAS", "CONQUISTAS A DESBLOQUEAR")
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            LockedMedal("Primeira partida", Modifier.weight(1f))
+            LockedMedal("Colecionador", Modifier.weight(1f))
+            LockedMedal("Jogador online", Modifier.weight(1f))
+        }
+
+        SectionTitle("CONTA", "PREFERÊNCIAS E ACESSO")
+        ActionCard(Icons.Rounded.Edit, "Personalizar jogador", "Altere seu nome e escolha um avatar.", onClick = {
+            draftName = visibleName
+            draftAvatar = avatar
+            editing = true
+        })
+        ActionCard(Icons.Rounded.Security, "Conta e segurança", if (guest) "Entre ou crie uma conta para preparar a sincronização." else email, onLogin)
+        ActionCard(Icons.Rounded.Logout, if (guest) "Entrar em uma conta" else "Sair da conta", "Sua biblioteca e seu perfil local permanecem neste aparelho.", onLogout)
+        Text("As estatísticas online, lista de amigos e sincronização serão ativadas após a configuração do projeto Supabase e do motor de partidas.", color = Muted, fontSize = 9.sp)
         Text("Retroboy Arcade • versão 0.2.0-alpha", color = Muted, fontSize = 10.sp)
+    }
+
+    if (editing) {
+        AlertDialog(
+            onDismissRequest = { editing = false },
+            containerColor = Panel2,
+            title = { Text("PERSONALIZAR JOGADOR", color = Color.White, fontFamily = DisplayFont) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = draftName,
+                        onValueChange = { draftName = it.take(22) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Nome do jogador") },
+                        singleLine = true,
+                        colors = authFieldColors()
+                    )
+                    Text("ESCOLHA SEU AVATAR", color = Cyan, fontFamily = DisplayFont, fontSize = 10.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        listOf("alien", "fox", "ninja", "robot").forEach { option ->
+                            Box(
+                                Modifier.size(54.dp).clip(CircleShape)
+                                    .border(2.dp, if (draftAvatar == option) Cyan else Muted.copy(alpha = .3f), CircleShape)
+                                    .clickable { draftAvatar = option }
+                                    .padding(4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painter = painterResource(avatarResource(option)),
+                                    contentDescription = option,
+                                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onSaveProfile(draftName.trim().ifBlank { "Jogador" }, draftAvatar)
+                    editing = false
+                }) { Text("SALVAR", color = Cyan) }
+            },
+            dismissButton = {
+                TextButton(onClick = { editing = false }) { Text("CANCELAR", color = Muted) }
+            }
+        )
+    }
+}
+
+@Composable
+private fun PlayerAvatar(avatar: String, size: androidx.compose.ui.unit.Dp) {
+    Box(Modifier.size(size + 16.dp), contentAlignment = Alignment.Center) {
+        Image(
+            painter = painterResource(avatarResource(avatar)),
+            contentDescription = "Avatar do jogador",
+            modifier = Modifier.size(size).clip(CircleShape),
+            contentScale = ContentScale.Crop
+        )
+        Image(
+            painter = painterResource(R.drawable.frame_neon),
+            contentDescription = "Moldura neon",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds
+        )
+    }
+}
+
+private fun avatarResource(avatar: String): Int = when (avatar) {
+    "alien" -> R.drawable.avatar_alien
+    "ninja" -> R.drawable.avatar_ninja
+    "robot" -> R.drawable.avatar_robot
+    else -> R.drawable.avatar_fox
+}
+
+@Composable
+private fun LockedMedal(title: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier.clip(RoundedCornerShape(13.dp)).background(Panel).padding(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Icon(Icons.Rounded.Lock, contentDescription = null, tint = Muted, modifier = Modifier.size(22.dp))
+        Text(title, color = Color.White, fontSize = 9.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 2)
+        Text("BLOQUEADA", color = Muted, fontSize = 7.sp, letterSpacing = .5.sp)
     }
 }
 
@@ -463,7 +656,7 @@ private fun AuthScreen(createAccount: Boolean, onToggleMode: () -> Unit, onGuest
         Spacer(Modifier.height(16.dp))
         OutlinedTextField(value = email, onValueChange = { email = it }, modifier = Modifier.fillMaxWidth(), label = { Text("E-mail") }, singleLine = true, shape = RoundedCornerShape(13.dp), colors = authFieldColors())
         Spacer(Modifier.height(10.dp))
-        OutlinedTextField(value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Senha (mínimo 6 caracteres)") }, singleLine = true, shape = RoundedCornerShape(13.dp), colors = authFieldColors())
+        OutlinedTextField(value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Senha (mínimo 6 caracteres)") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), shape = RoundedCornerShape(13.dp), colors = authFieldColors())
         Spacer(Modifier.height(13.dp))
         Button(onClick = { onSubmit(email, password) }, modifier = Modifier.fillMaxWidth().height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = Purple), shape = RoundedCornerShape(13.dp)) { Text(if (createAccount) "CRIAR MINHA CONTA" else "ENTRAR", fontWeight = FontWeight.Black) }
         TextButton(onClick = onToggleMode) { Text(if (createAccount) "Já tenho uma conta • Entrar" else "Ainda não tenho conta • Cadastrar", color = Cyan) }

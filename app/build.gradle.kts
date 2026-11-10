@@ -91,3 +91,10 @@ val unpackRetroboyFonts = tasks.register<org.gradle.api.tasks.Copy>("unpackRetro
 }
 android.sourceSets.getByName("main").res.srcDir(layout.buildDirectory.dir("generated/retroboyFonts/res"))
 tasks.named("preBuild").configure { dependsOn(unpackRetroboyFonts) }
+
+val unpackRetroboyProfileAssets = tasks.register<org.gradle.api.tasks.Copy>("unpackRetroboyProfileAssets") {
+    from(zipTree(rootProject.file("artwork/retroboy-profile-assets.zip")))
+    into(layout.buildDirectory.dir("generated/retroboyProfileAssets/res"))
+}
+android.sourceSets.getByName("main").res.srcDir(layout.buildDirectory.dir("generated/retroboyProfileAssets/res"))
+tasks.named("preBuild").configure { dependsOn(unpackRetroboyProfileAssets) }
