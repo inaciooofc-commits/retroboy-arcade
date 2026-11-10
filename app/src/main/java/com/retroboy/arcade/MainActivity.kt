@@ -54,7 +54,7 @@ private val Cyan = Color(0xFF00EFFF)
 private val Pink = Color(0xFFFF2DD6)
 private val Muted = Color(0xFF93A4C8)
 private val BrandFont = FontFamily(Font(R.font.stranger_title))
-private val DisplayFont = FontFamily(Font(R.font.nightwork))
+private val DisplayFont = BrandFont
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

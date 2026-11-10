@@ -12,6 +12,7 @@ O pacote gráfico enviado foi usado como referência de layout e paleta:
 
 As fontes anexadas foram integradas ao build:
 - Stranger back in the Night (subset somente para o logotipo RETROBOY).
-- NightWork (títulos de seção, destaque e elementos de display).
+- Stranger back in the Night aplicado também aos títulos e chamadas de destaque para manter a identidade tipográfica consistente.
+- NightWork permanece no pacote de fontes recebido, mas não foi incorporada ao APK nesta etapa.
 
 Os PNGs do pacote gráfico continuam como referência para a integração dos avatares, medalhas, molduras, chips, botões e telas completas nas próximas iterações. Esta versão já aplica a tipografia e a paleta; não declara todos os PNGs como integrados.
