@@ -45,6 +45,8 @@ import com.retroboy.arcade.data.AchievementCatalog
 import com.retroboy.arcade.data.AuthRepository
 import com.retroboy.arcade.data.CatalogRepository
 import com.retroboy.arcade.data.DeveloperAccessRepository
+import com.retroboy.arcade.data.RetroAchievementsRepository
+import com.retroboy.arcade.data.SecurePrefs
 import com.retroboy.arcade.emulation.CoreCatalog
 import com.retroboy.arcade.emulation.CoreInstaller
 import com.retroboy.arcade.model.Achievement
@@ -64,7 +66,7 @@ private val Cyan = Color(0xFF00EFFF)
 private val Pink = Color(0xFFFF2DD6)
 private val Muted = Color(0xFF93A4C8)
 private val BrandFont = FontFamily(Font(R.font.stranger_title))
-private val DisplayFont = BrandFont
+private val DisplayFont = FontFamily(Font(R.font.nightwork))
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -77,6 +79,9 @@ class MainActivity : ComponentActivity() {
 private fun RetroboyApp() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("retroboy-local", 0) }
+    val securePrefs = remember(context) { SecurePrefs(context) }
+    var retroUsername by remember { mutableStateOf(securePrefs.getString("ra_username")) }
+    var retroApiKey by remember { mutableStateOf(securePrefs.getString("ra_api_key")) }
     var email by remember { mutableStateOf("") }
     var guest by remember { mutableStateOf(prefs.getBoolean("guest", false)) }
     var tab by remember { mutableStateOf("Início") }
@@ -209,6 +214,7 @@ private fun RetroboyApp() {
                     val saveDirectory = File(context.filesDir, "saves").apply { mkdirs() }.absolutePath
                     GamePlayerScreen(
                         title = game.title,
+                        coreId = playingCoreId,
                         corePath = corePath,
                         gamePath = gamePath,
                         systemDirectory = systemDirectory,
@@ -232,10 +238,21 @@ private fun RetroboyApp() {
                             "Início" -> HomeScreen(
                                 email = email, importedCount = importedGames.size,
                                 onOpenGames = { tab = "Jogos" }, onOpenDownloads = { tab = "Downloads" },
-                                onOpenAchievements = { tab = "Conquistas" }, onOpenAuth = { authVisible = true }
+                                onOpenAchievements = { tab = "Troféus" }, onOpenAuth = { authVisible = true }
                             )
                             "Jogos" -> LibraryScreen(importedGames, onImport = { picker.launch(arrayOf("*/*")) }, onSelect = { selectedGame = it })
-                            "Conquistas" -> AchievementsScreen(AchievementCatalog.all)
+                            "Conquistas", "Troféus" -> AchievementsScreen(
+                                achievements = AchievementCatalog.all,
+                                retroUsername = retroUsername,
+                                retroConfigured = retroApiKey.isNotBlank(),
+                                onSaveRetroCredentials = { username, key ->
+                                    securePrefs.putString("ra_username", username)
+                                    securePrefs.putString("ra_api_key", key)
+                                    retroUsername = username
+                                    retroApiKey = key
+                                }
+                            )
+                            "Online" -> OnlineScreen(importedCount = importedGames.size, onOpenGames = { tab = "Jogos" })
                             "Downloads" -> DownloadsScreen(
                                 count = catalogCount, message = catalogMessage, loading = assetsLoading,
                                 installedCoreIds = installedCoreIds, installingCore = installingCore,
@@ -281,6 +298,8 @@ private fun RetroboyApp() {
                         game = game,
                         installedCoreIds = installedCoreIds,
                         installingCore = installingCore,
+                        retroUsername = retroUsername,
+                        retroApiKey = retroApiKey,
                         onDismiss = { selectedGame = null },
                         onInstallCore = installCore,
                         onPlay = { coreId ->
@@ -428,16 +447,62 @@ private fun LibraryScreen(games: List<GameEntry>, onImport: () -> Unit, onSelect
 }
 
 @Composable
-private fun AchievementsScreen(achievements: List<Achievement>) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionTitle("CONQUISTAS", "CADA FICHA CONTA")
+private fun AchievementsScreen(
+    achievements: List<Achievement>,
+    retroUsername: String,
+    retroConfigured: Boolean,
+    onSaveRetroCredentials: (String, String) -> Unit
+) {
+    var username by remember(retroUsername) { mutableStateOf(retroUsername) }
+    var apiKey by remember { mutableStateOf("") }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        SectionTitle("TROFÉUS", "CONQUISTAS DO RETROBOY E DOS SEUS JOGOS")
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Panel2).padding(15.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Column { Text("SEU PLACAR", color = Muted, fontSize = 9.sp); Text("0 PTS", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black) }
             Icon(Icons.Rounded.EmojiEvents, null, tint = Color(0xFFFFD166), modifier = Modifier.size(38.dp))
         }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            items(achievements, key = { it.id }) { achievement -> AchievementRow(achievement) }
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Panel).border(1.dp, Cyan.copy(alpha = .25f), RoundedCornerShape(15.dp)).padding(14.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("RETROACHIEVEMENTS", color = Color.White, fontFamily = DisplayFont, fontSize = 15.sp)
+                Text(
+                    if (retroConfigured) "Conta configurada. A chave fica criptografada no Android Keystore deste aparelho."
+                    else "Conecte sua conta para localizar cada ROM por hash e carregar as conquistas oficiais daquele jogo.",
+                    color = Muted, fontSize = 9.sp
+                )
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Usuário RetroAchievements") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = authFieldColors()
+                )
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = { apiKey = it.trim() },
+                    label = { Text(if (retroConfigured) "Nova Web API Key (para atualizar)" else "Web API Key") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = authFieldColors()
+                )
+                Button(
+                    onClick = {
+                        onSaveRetroCredentials(username.trim(), apiKey.trim())
+                        apiKey = ""
+                    },
+                    enabled = username.isNotBlank() && apiKey.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Purple)
+                ) { Text("SALVAR CONEXÃO") }
+                Text("A chave é solicitada diretamente pelo usuário e armazenada localmente, protegida pelo Android Keystore.", color = Muted, fontSize = 8.sp)
+            }
         }
+        SectionTitle("CONQUISTAS DO APP", "DESAFIOS GERAIS DO RETROBOY")
+        achievements.forEach { achievement -> AchievementRow(achievement) }
     }
 }
 
@@ -697,7 +762,7 @@ private fun ProfileScreen(
                     )
                     Text("ESCOLHA SEU AVATAR", color = Cyan, fontFamily = DisplayFont, fontSize = 10.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        listOf("alien", "fox", "ninja", "robot").forEach { option ->
+                        listOf("alien", "arcade", "fox", "knight", "ninja", "pilot", "pixel", "robot").forEach { option ->
                             Box(
                                 Modifier.size(54.dp).clip(CircleShape)
                                     .border(2.dp, if (draftAvatar == option) Cyan else Muted.copy(alpha = .3f), CircleShape)
@@ -749,7 +814,11 @@ private fun PlayerAvatar(avatar: String, size: androidx.compose.ui.unit.Dp) {
 
 private fun avatarResource(avatar: String): Int = when (avatar) {
     "alien" -> R.drawable.avatar_alien
+    "arcade" -> R.drawable.avatar_arcade
+    "knight" -> R.drawable.avatar_knight
     "ninja" -> R.drawable.avatar_ninja
+    "pilot" -> R.drawable.avatar_pilot
+    "pixel" -> R.drawable.avatar_pixel
     "robot" -> R.drawable.avatar_robot
     else -> R.drawable.avatar_fox
 }
@@ -801,8 +870,55 @@ private fun authFieldColors() = OutlinedTextFieldDefaults.colors(
 )
 
 @Composable
+private fun OnlineScreen(importedCount: Int, onOpenGames: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        SectionTitle("JOGAR COM AMIGOS", "CONEXÃO DIRETA P2P")
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                .background(Brush.linearGradient(listOf(Color(0xFF102B39), Color(0xFF17132C))))
+                .border(1.dp, Color(0xFF48E7C2).copy(alpha = .35f), RoundedCornerShape(18.dp))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Rounded.Wifi, null, tint = Color(0xFF48E7C2), modifier = Modifier.size(28.dp))
+                Text("MULTIPLAYER ENTRE APARELHOS", color = Color.White, fontFamily = DisplayFont, fontSize = 17.sp)
+                Text("O Retroboy usa WebRTC DataChannel: os controles seguem diretamente entre os dois celulares. O Supabase participa apenas da troca inicial de oferta, resposta e candidatos de rede.", color = Muted, fontSize = 10.sp)
+                Text("Biblioteca local: $importedCount jogos", color = Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Button(onClick = onOpenGames, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Purple)) {
+            Icon(Icons.Rounded.SportsEsports, null)
+            Spacer(Modifier.width(8.dp))
+            Text("ABRIR BIBLIOTECA")
+        }
+        SectionTitle("COMO CONECTAR", "PASSO A PASSO")
+        listOf(
+            "1. Abra o mesmo jogo nos dois aparelhos.",
+            "2. No primeiro, toque no ícone de jogadores e escolha CRIAR SALA.",
+            "3. Compartilhe o código de oito caracteres.",
+            "4. No segundo aparelho, abra o mesmo jogo e escolha ENTRAR NA SALA.",
+            "5. Quando o canal indicar P2P CONECTADO, os controles locais passam a controlar os jogadores 1 e 2."
+        ).forEach { step ->
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Panel).padding(12.dp)) {
+                Text(step, color = Color.White, fontSize = 10.sp)
+            }
+        }
+        Text("Ambos precisam usar o mesmo arquivo de jogo e o mesmo núcleo. Redes com CGNAT restritivo podem precisar de um servidor TURN configurado no build.", color = Muted, fontSize = 9.sp)
+    }
+}
+
+@Composable
 private fun BottomBar(tab: String, onSelect: (String) -> Unit) {
-    val items = listOf("Início" to Icons.Rounded.Home, "Jogos" to Icons.Rounded.SportsEsports, "Conquistas" to Icons.Rounded.EmojiEvents, "Downloads" to Icons.Rounded.CloudDownload, "Perfil" to Icons.Rounded.Person)
+    val items = listOf(
+        "Início" to Icons.Rounded.Home,
+        "Jogos" to Icons.Rounded.SportsEsports,
+        "Online" to Icons.Rounded.Groups,
+        "Troféus" to Icons.Rounded.EmojiEvents,
+        "Perfil" to Icons.Rounded.Person
+    )
     Row(Modifier.fillMaxWidth().background(Color(0xFF100D1A)).padding(horizontal = 5.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceAround) {
         items.forEach { (label, icon) ->
             val selected = tab == label
@@ -819,10 +935,18 @@ private fun GameInfoDialog(
     game: GameEntry,
     installedCoreIds: Set<String>,
     installingCore: String?,
+    retroUsername: String,
+    retroApiKey: String,
     onDismiss: () -> Unit,
     onInstallCore: (String) -> Unit,
     onPlay: (String) -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val retroRepository = remember(context) { RetroAchievementsRepository(context) }
+    var retroLoading by remember(game.id) { mutableStateOf(false) }
+    var retroMessage by remember(game.id) { mutableStateOf("") }
+    var retroDetails by remember(game.id) { mutableStateOf<com.retroboy.arcade.data.RetroGameDetails?>(null) }
     var useGpSp by remember(game.id) { mutableStateOf(game.localPath?.endsWith(".bin", ignoreCase = true) == true) }
     val coreId = when (game.platform) {
         Platform.GBA -> if (useGpSp) "gpsp" else "mgba"
@@ -845,7 +969,10 @@ private fun GameInfoDialog(
         containerColor = Panel2,
         title = { Text(game.title, color = Color.White, fontFamily = DisplayFont, fontSize = 20.sp) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Column(
+                Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
                 Text("SISTEMA  •  " + systemLabel(game.localPath?.let { File(it).name } ?: game.title, game.platform).uppercase(), color = Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Text("NÚCLEO  •  " + coreTitle, color = Color.White, fontSize = 12.sp)
                 if (game.platform == Platform.GBA && (game.localPath?.endsWith(".gba", ignoreCase = true) == true || game.localPath?.endsWith(".bin", ignoreCase = true) == true)) {
@@ -868,6 +995,63 @@ private fun GameInfoDialog(
                     color = if (fileReady && installed) Color(0xFF4AFFA3) else Muted,
                     fontSize = 10.sp
                 )
+                Divider(color = Color.White.copy(alpha = .12f))
+                Text("CONQUISTAS INDIVIDUAIS", color = Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                if (retroApiKey.isBlank() || retroUsername.isBlank()) {
+                    Text("Configure seu usuário e sua Web API Key na aba Troféus para pesquisar as conquistas oficiais deste jogo.", color = Muted, fontSize = 9.sp)
+                } else {
+                    Button(
+                        onClick = {
+                            val path = game.localPath
+                            if (path != null) {
+                                retroLoading = true
+                                retroMessage = "Identificando a ROM pelo hash…"
+                                scope.launch {
+                                    retroRepository.findGame(path, game.platform, retroUsername, retroApiKey)
+                                        .onSuccess {
+                                            retroDetails = it
+                                            retroMessage = ""
+                                        }
+                                        .onFailure {
+                                            retroDetails = null
+                                            retroMessage = it.message ?: "Não foi possível localizar o conjunto."
+                                        }
+                                    retroLoading = false
+                                }
+                            }
+                        },
+                        enabled = fileReady && !retroLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Purple)
+                    ) {
+                        if (retroLoading) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                        else Icon(Icons.Rounded.EmojiEvents, null)
+                        Spacer(Modifier.width(7.dp))
+                        Text(if (retroLoading) "PESQUISANDO…" else "PESQUISAR CONQUISTAS DO JOGO", fontSize = 9.sp)
+                    }
+                    if (retroMessage.isNotBlank()) Text(retroMessage, color = Muted, fontSize = 9.sp)
+                    retroDetails?.let { details ->
+                        Text(details.title + " • " + details.consoleName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(
+                            details.unlockedCount.toString() + "/" + details.totalCount + " desbloqueadas • " +
+                                details.scoreAchieved + "/" + details.possibleScore + " pontos",
+                            color = Cyan, fontSize = 9.sp
+                        )
+                        details.achievements.forEach { achievement ->
+                            Column(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(Panel).padding(9.dp),
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(achievement.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.weight(1f))
+                                    Text(achievement.points.toString() + " PTS", color = Cyan, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Text(achievement.description, color = Muted, fontSize = 9.sp)
+                            }
+                        }
+                        Text("Dados oficiais do RetroAchievements. O desbloqueio automático dentro do Retroboy exige o runtime rcheevos e compatibilidade de memória do núcleo.", color = Muted, fontSize = 8.sp)
+                    }
+                }
             }
         },
         confirmButton = {
