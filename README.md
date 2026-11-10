@@ -8,8 +8,8 @@ Aplicativo Android de jogos retrô, desenvolvido em Kotlin + Jetpack Compose, co
 - Logotipo com fonte personalizada Stranger e tipografia de display.
 - Avatares, moldura neon e patente inicial; nome e avatar editáveis.
 - ID local do jogador, nível/XP inicial, biblioteca, conquistas e medalhas.
-- Importação de ROMs `.gba`, `.gb`, `.gbc`, `.zip` e `.7z` para armazenamento privado.
-- Download de cores oficiais Libretro FBNeo, gpSP e mGBA para ARM64, ARMv7 e x86_64.
+- Importação de jogos GB/GBC/GBA, NES, SNES, Mega Drive/Master System/Game Gear, PlayStation, Atari 2600/Lynx, PC Engine e romsets Arcade/Neo Geo.
+- Download de cores oficiais Libretro para FBNeo, gpSP, mGBA, FCEUmm, Snes9x, Genesis Plus GX, PCSX ReARMed, Stella, Handy e Beetle PCE FAST.
 - Verificação das bibliotecas nativas antes da instalação.
 - Frontend Libretro: `retro_init`, `retro_load_game`, `retro_run`, callbacks de vídeo/áudio/input.
 - Renderização em `SurfaceView`, áudio estéreo por `AudioTrack`, controles touch e gamepad Bluetooth/USB.
@@ -42,12 +42,14 @@ Para Neo Geo/Arcade, o plano é reutilizar o protocolo de netplay do RetroArch/L
 
 Referências: <https://docs.libretro.com/development/retroarch/netplay/> e <https://docs.libretro.com/guides/netplay-getting-started/>.
 
-## ROMs e BIOS
+## Fontes externas, ROMs e BIOS
+
+O Download Center inclui acesso externo ao [Vimm's Lair — The Vault](https://vimm.net/vault/). O link abre o site no navegador; o Retroboy não faz scraping do catálogo, não espelha arquivos e não baixa ROMs de terceiros automaticamente. Após obter um arquivo que você tenha autorização para utilizar, importe-o pela biblioteca.
 
 O app não distribui jogos comerciais nem BIOS protegidas. Importe somente arquivos que você tenha direito de usar.
 
-- Para arcade/Neo Geo, importe ROMs em `.zip` ou `.7z`. Alguns jogos precisam de BIOS; para Neo Geo, o arquivo usual é `neogeo.zip`.
-- Para mGBA, `gba_bios.bin`, `gb_bios.bin` e `gbc_bios.bin` são opcionais; o frontend ativa `mgba_use_bios=ON` quando disponível. Para gpSP, `gba_bios.bin` é opcional.
+- Para arcade/Neo Geo, importe romsets ZIP compatíveis com FBNeo. Para consoles, importe o arquivo de jogo extraído, não o ZIP de download.
+- BIOS e firmware variam por sistema: Famicom Disk System (`disksys.rom`), Atari Lynx (`lynxboot.img`), PS1 (`scph*.bin`), PC Engine CD (`syscard*.pce`) e GB/GBC/GBA conforme o core.
 - Os arquivos de sistema ficam em `filesDir/system/`; saves ficam em `filesDir/saves/`.
 
 ## Supabase e conta developer

@@ -31,8 +31,8 @@ class CoreInstaller(context: Context) {
         .callTimeout(150, TimeUnit.SECONDS)
         .build()
 
-    private fun selectedAbi(): String? {
-        return Build.SUPPORTED_ABIS.firstOrNull { it == "arm64-v8a" || it == "armeabi-v7a" || it == "x86_64" }
+    private fun selectedAbi(core: CoreDefinition): String? {
+        return Build.SUPPORTED_ABIS.firstOrNull { it in core.supportedAbis }
     }
 
     private fun coreFile(coreId: String, abi: String): File {
@@ -40,19 +40,22 @@ class CoreInstaller(context: Context) {
     }
 
     fun installedCoreIds(): Set<String> {
-        val abi = selectedAbi() ?: return emptySet()
-        return CoreCatalog.all.filter { coreFile(it.id, abi).isFile }.map { it.id }.toSet()
+        return CoreCatalog.all.mapNotNull { core ->
+            val abi = selectedAbi(core) ?: return@mapNotNull null
+            core.id.takeIf { coreFile(core.id, abi).isFile }
+        }.toSet()
     }
 
     fun installedCorePath(coreId: String): String? {
-        val abi = selectedAbi() ?: return null
+        val core = CoreCatalog.find(coreId) ?: return null
+        val abi = selectedAbi(core) ?: return null
         return coreFile(coreId, abi).takeIf { it.isFile }?.absolutePath
     }
 
     suspend fun install(coreId: String): Result<InstalledCore> = withContext(Dispatchers.IO) {
         runCatching {
             val core = CoreCatalog.find(coreId) ?: throw IOException("Núcleo desconhecido.")
-            val abi = selectedAbi() ?: throw IOException("Este aparelho não possui uma ABI Android compatível.")
+            val abi = selectedAbi(core) ?: throw IOException("Este núcleo não possui uma versão compatível com a arquitetura deste aparelho. Arquiteturas disponíveis: " + core.supportedAbis.joinToString(", "))
             val target = coreFile(core.id, abi)
             val directory = target.parentFile ?: throw IOException("Não foi possível preparar a pasta de núcleos.")
             if (!directory.exists() && !directory.mkdirs()) {

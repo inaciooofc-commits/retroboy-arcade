@@ -1,7 +1,16 @@
 package com.retroboy.arcade.model
 
 enum class Platform(val label: String) {
-    NEOGEO("Neo Geo"), ARCADE("Arcade"), GBA("Game Boy Advance")
+    NEOGEO("Neo Geo"),
+    ARCADE("Arcade"),
+    GBA("Game Boy Advance"),
+    NES("Nintendo NES"),
+    SNES("Super Nintendo"),
+    SEGA("Sega 8/16-bit"),
+    PS1("PlayStation"),
+    ATARI2600("Atari 2600"),
+    ATARI_LYNX("Atari Lynx"),
+    PC_ENGINE("PC Engine")
 }
 
 data class GameEntry(

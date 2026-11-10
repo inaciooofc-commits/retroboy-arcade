@@ -1,72 +1,85 @@
 # Arquitetura de emulação — Retroboy Arcade
 
-## Matriz de cores
+## Matriz de sistemas e núcleos
 
-| Sistema | Core | Motivo | Situação |
+| Sistema | Core | ABI Android | Situação |
 |---|---|---|---|
-| Neo Geo | FinalBurn Neo (FBNeo) | Forte compatibilidade com Neo Geo e arcade; netplay upstream | Runtime single-player integrado; validar ROMs e BIOS no aparelho |
-| Arcade | FinalBurn Neo (FBNeo) | Cobertura ampla de placas clássicas | Runtime single-player integrado; validar romsets no aparelho |
-| GB / GBC / GBA offline | mGBA | Precisão, compatibilidade e saves | Runtime single-player integrado; validar jogos e SRAM |
-| Pokémon FireRed — trocas | gpSP | Emula GBA Wireless Adapter, exceção documentada para trocas Pokémon | Runtime single-player integrado; recurso sem fio ainda experimental |
+| Neo Geo / Arcade | FinalBurn Neo (FBNeo) | ARM64, ARMv7, x86_64 | Runtime single-player integrado; validar romsets no aparelho |
+| GB / GBC / GBA | mGBA | ARM64, ARMv7, x86_64 | Runtime single-player integrado; validar jogos e SRAM |
+| GBA / Wireless Adapter experimental | gpSP | ARM64, ARMv7, x86_64 | Trocas Pokémon ainda precisam de teste em dois aparelhos |
+| NES / Famicom | FCEUmm | ARM64 | Core adicionado ao catálogo; validar jogos e BIOS FDS |
+| SNES / Super Famicom | Snes9x | ARM64 | Core adicionado ao catálogo; licença não comercial |
+| Mega Drive / Master System / Game Gear / Sega CD | Genesis Plus GX | ARM64 | Core adicionado ao catálogo; não suporta 32X |
+| PlayStation 1 | PCSX ReARMed | ARM64, ARMv7 | Core otimizado para ARM; BIOS própria recomendada |
+| Atari 2600 | Stella | ARM64 | Core adicionado ao catálogo |
+| Atari Lynx | Handy | ARM64 | Requer `lynxboot.img` |
+| PC Engine / TurboGrafx-16 / CD | Beetle PCE FAST | ARM64 | Requer BIOS para jogos CD |
 
-## Arquitetura do frontend
+## Frontend e instalação
 
-O Retroboy usa a API Libretro com um frontend Android próprio em Kotlin/Compose e uma biblioteca JNI/C++.
+O Retroboy usa a API Libretro com um frontend Android em Kotlin/Compose e uma biblioteca JNI/C++.
 
-1. O gerenciador baixa os pacotes oficiais do Buildbot Libretro para ARM64, ARMv7 ou x86_64.
-2. O instalador extrai a biblioteca `.so`, verifica a ABI e valida os exports Libretro via `dlopen/dlsym`.
+1. O gerenciador baixa pacotes oficiais do Buildbot Libretro para a ABI compatível com o aparelho.
+2. O instalador extrai a biblioteca `.so`, verifica a ABI e valida os exports via `dlopen/dlsym`.
 3. O frontend registra callbacks de ambiente, vídeo, áudio e input antes de `retro_init`.
 4. O jogo é carregado por caminho absoluto quando o core exige full path ou por bytes quando aceita conteúdo em memória.
-5. `retro_run` roda em uma thread dedicada.
+5. `retro_run` roda em thread dedicada.
 6. O vídeo é convertido para RGBA_8888 e enviado a um `SurfaceView`.
-7. O áudio estéreo PCM 16-bit é drenado de um buffer nativo para `AudioTrack`.
-8. O input touch e gamepad é mapeado para os IDs padrão de joypad Libretro.
-9. Save states usam `retro_serialize`/`retro_unserialize`; SRAM é lida por `RETRO_MEMORY_SAVE_RAM` e persistida em `filesDir/saves/`.
+7. O áudio PCM estéreo é drenado para `AudioTrack`.
+8. Controles touch e gamepad são mapeados para o joypad Libretro.
+9. Save states usam `retro_serialize`/`retro_unserialize`; SRAM é persistida em `filesDir/saves/`.
 
-A CI compila o frontend. A execução real dos jogos ainda precisa ser validada em aparelhos Android físicos com arquivos de teste legais/homebrew.
+A CI compila o frontend. A execução real dos jogos ainda precisa ser validada em aparelhos Android físicos com arquivos legais/homebrew.
 
-## Conteúdo e BIOS
+## Formatos de importação
 
-- Extensões aceitas pelo importador: `.gba`, `.gb`, `.gbc`, `.zip` e `.7z`.
-- mGBA aceita GB, GBC e GBA; `gba_bios.bin`, `gb_bios.bin` e `gbc_bios.bin` são opcionais. O frontend ativa a opção `mgba_use_bios=ON` para aproveitar a BIOS importada.
-- gpSP aceita GBA em `.gba` ou `.bin`; `gba_bios.bin` é opcional.
-- FBNeo aceita romsets ZIP/7z. Alguns sistemas precisam de BIOS; para Neo Geo, importe `neogeo.zip`.
-- O importador de BIOS copia arquivos do usuário para `filesDir/system/`.
-- O Retroboy não distribui ROMs comerciais nem BIOS protegidas.
+- GB/GBC/GBA: `.gb`, `.gbc`, `.gba`.
+- NES/Famicom: `.nes`, `.fds`, `.unif`, `.unf`.
+- SNES: `.sfc`, `.smc`, `.swc`, `.fig`, `.bs`, `.st`.
+- Sega 8/16-bit: `.md`, `.mdx`, `.smd`, `.gen`, `.sms`, `.gg`, `.sg`.
+- PlayStation: `.pbp`, `.cue`, `.ccd`, `.chd`, `.iso`, `.img`, `.toc`, `.m3u`.
+- Atari 2600: `.a26`.
+- Atari Lynx: `.lnx`.
+- PC Engine: `.pce`; CD usa cue/chd com BIOS compatível.
+- Arcade/Neo Geo: romsets ZIP compatíveis com FBNeo.
 
-Para FBNeo, confira os requisitos de romset e BIOS da documentação oficial: <https://docs.libretro.com/library/fbneo/>.
+Arquivos de CD em formato cue/bin precisam manter todos os arquivos referenciados juntos na mesma pasta. No importador atual, priorize arquivos de imagem autocontidos (`.chd`, `.pbp`, `.iso`) para PlayStation; para coleções cue/bin, extraia e mantenha os arquivos relacionados juntos antes da importação. Arquivos `.bin` isolados são identificados como GBA, então não use essa extensão isoladamente para outros sistemas.
 
-## Pokémon FireRed e GBA
+## BIOS e firmware
 
-O netplay genérico do RetroArch não é emulação de link cable GBA. O FAQ oficial cita gpSP, que emula o GBA Wireless Adapter, como exceção para **trocas Pokémon**. Isso não garante batalhas sem fio nem todos os modos de FireRed/LeafGreen. O recurso deve permanecer experimental até ser validado em dois aparelhos com o mesmo core, versão e conteúdo.
+- mGBA: `gba_bios.bin`, `gb_bios.bin`, `gbc_bios.bin` opcionais.
+- FCEUmm/FDS: `disksys.rom` quando o jogo exigir Famicom Disk System.
+- PCSX ReARMed: BIOS PS1 como `scph1001.bin`, `scph5501.bin` ou compatível; HLE é fallback com compatibilidade inferior.
+- Handy: `lynxboot.img` obrigatório.
+- Beetle PCE FAST: `syscard3.pce` para Super CD-ROM2; outras System Cards podem ser necessárias por jogo.
+- FBNeo/Neo Geo: importe a BIOS própria do romset, normalmente `neogeo.zip`.
 
-mGBA é o core padrão para jogar GB/GBC/GBA offline. A documentação informa que mGBA não oferece netplay upstream; gpSP anuncia netplay, mas o uso de Wireless Adapter precisa de teste específico.
+O importador de BIOS copia arquivos fornecidos pelo usuário para `filesDir/system/`. Não distribuímos ROMs comerciais nem BIOS protegidas.
 
-## Multiplayer entre casas — melhor caminho
+## Vimm's Lair como fonte externa
 
-Para Neo Geo/Arcade, a melhor opção é reutilizar/portar o protocolo de netplay do RetroArch/Libretro, não inventar sincronização de frames do zero.
+O Download Center abre [Vimm's Lair — The Vault](https://vimm.net/vault/) no navegador. Não há integração por API oficial implementada nem scraping/download automático. O fluxo suportado é: abrir o catálogo externo, obter apenas conteúdo autorizado pelo usuário, importar o arquivo local e iniciar com o core correspondente.
 
-- O netplay RetroArch sincroniza inputs por frame e usa rollback/replay; a experiência ideal exige core determinístico, mesma versão do core, conteúdo idêntico e suporte a serialização.
-- O host normalmente precisa aceitar conexões TCP na porta 55435.
-- Se o jogador não puder abrir portas ou estiver atrás de NAT/CGNAT, o RetroArch oferece Relay Server público, que encaminha os dois lados sem exigir servidor próprio do jogador.
-- O Retroboy ainda precisa integrar esse protocolo. O suporte a netplay do core, sozinho, não ativa partidas online no app.
-- Supabase Realtime deve cuidar de contas, presença, salas e convites. Não deve transportar inputs a cada frame, áudio ou vídeo.
+## Limitações de vídeo e próximos núcleos
 
-Para GBA, não anunciar link cable genérico. gpSP é a opção experimental para testar trocas Pokémon via Wireless Adapter; batalhas não estão garantidas.
+O frontend atual apresenta vídeo por callback de software em `SurfaceView`. Cores que exigem renderização gráfica acelerada pelo frontend (por exemplo, alguns caminhos de N64 e Dreamcast) ficam fora desta expansão até implementarmos contexto EGL/OpenGL/Vulkan e callbacks `RETRO_ENVIRONMENT_SET_HW_RENDER`.
 
 ## Licenças
 
-- FBNeo: licença não comercial. Não usar em produto ou atividade comercial sem autorização/licença adequada.
-- gpSP: GPLv2.
-- mGBA: MPLv2.
+- FBNeo: não comercial; precisa de revisão/licença antes de uso comercial.
+- Snes9x e Genesis Plus GX: não comercial.
+- gpSP, FCEUmm, PCSX ReARMed, Stella e Beetle PCE FAST: GPL (versões indicadas no catálogo).
+- mGBA: MPL-2.0.
+- Handy: zlib.
 
 ## Referências técnicas
 
-- Libretro API: https://docs.libretro.com/development/libretro-overview/
-- FBNeo: https://docs.libretro.com/library/fbneo/
-- gpSP: https://docs.libretro.com/library/gpsp/
-- mGBA: https://docs.libretro.com/library/mgba/
-- Netplay FAQ: https://docs.libretro.com/guides/netplay-faq/
-- Netplay Getting Started / Relay Server: https://docs.libretro.com/guides/netplay-getting-started/
-- Netplay rollback internals: https://docs.libretro.com/development/retroarch/netplay/
-- Android core buildbot: https://buildbot.libretro.com/nightly/android/latest/
+- Libretro core list: https://docs.libretro.com/guides/core-list/
+- Android core downloads: https://docs.libretro.com/guides/download-cores/
+- FCEUmm: https://docs.libretro.com/library/fceumm/
+- Snes9x: https://docs.libretro.com/library/snes9x/
+- Genesis Plus GX: https://docs.libretro.com/library/genesis_plus_gx/
+- PCSX ReARMed: https://docs.libretro.com/library/pcsx_rearmed/
+- Stella: https://docs.libretro.com/library/stella/
+- Handy: https://docs.libretro.com/library/handy/
+- Beetle PCE FAST: https://docs.libretro.com/library/beetle_pce_fast/

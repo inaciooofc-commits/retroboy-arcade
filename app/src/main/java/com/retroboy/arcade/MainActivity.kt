@@ -55,6 +55,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
+private const val VIMM_VAULT_URL = "https://vimm.net/vault/"
 private val Night = Color(0xFF070918)
 private val Panel = Color(0xFF111631)
 private val Panel2 = Color(0xFF171F3B)
@@ -144,7 +145,7 @@ private fun RetroboyApp() {
             val name = queryDisplayName(context, uri)
             val platform = detectPlatform(name)
             if (platform == null) {
-                authMessage = "Formato não reconhecido. Importe arquivos .gba ou .zip de arcade/Neo Geo."
+                authMessage = "Formato não reconhecido. Compatíveis: GB/GBC/GBA, NES, SNES, Mega Drive, PS1, Atari 2600/Lynx, PC Engine e arquivos ZIP de arcade/Neo Geo."
             } else {
                 authMessage = "Copiando o jogo para a biblioteca segura…"
                 scope.launch {
@@ -152,11 +153,7 @@ private fun RetroboyApp() {
                         .onSuccess { path ->
                             val entry = GameEntry(
                                 id = "local-" + path.hashCode(), title = name, platform = platform,
-                                subtitle = systemLabel(name, platform) + " • arquivo local", accent = when (platform) {
-                                    Platform.GBA -> 0xFF00EFFF
-                                    Platform.NEOGEO -> 0xFFFF2DD6
-                                    else -> 0xFF8F5BFF
-                                },
+                                subtitle = systemLabel(name, platform) + " • arquivo local", accent = platformAccent(platform),
                                 localPath = path
                             )
                             importedGames = (importedGames.filterNot { it.localPath == path } + entry)
@@ -474,6 +471,7 @@ private fun DownloadsScreen(
     onInstallCore: (String) -> Unit,
     onRefresh: () -> Unit
 ) {
+    val context = LocalContext.current
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -486,7 +484,27 @@ private fun DownloadsScreen(
                 Text("Capas, configurações e conteúdo autorizado. ROMs comerciais e BIOS protegidas devem ser fornecidas pelo próprio usuário.", color = Color(0xFFD0C7DE), fontSize = 11.sp)
             }
         }
-        Button(onClick = onRefresh, enabled = !loading, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Purple), shape = RoundedCornerShape(12.dp)) {
+        SectionTitle("FONTES DE JOGOS", "CATÁLOGOS EXTERNOS")
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp))
+                .background(Panel).border(1.dp, Cyan.copy(alpha = .28f), RoundedCornerShape(15.dp))
+                .padding(13.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Vimm's Lair • The Vault", color = Color.White, fontFamily = DisplayFont, fontSize = 15.sp)
+                Text("Consulte o catálogo no navegador. Depois, importe para a biblioteca apenas arquivos que você tenha autorização para utilizar.", color = Muted, fontSize = 9.sp)
+            }
+            Spacer(Modifier.width(8.dp))
+            Button(
+                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(VIMM_VAULT_URL))) },
+                colors = ButtonDefaults.buttonColors(containerColor = Purple),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(10.dp)
+            ) { Text("ABRIR", fontFamily = DisplayFont, fontSize = 10.sp) }
+        }
+        Text("O Retroboy não hospeda, espelha nem baixa ROMs desse catálogo. O acesso é externo e o usuário importa os próprios arquivos.", color = Muted, fontSize = 9.sp)
+                Button(onClick = onRefresh, enabled = !loading, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Purple), shape = RoundedCornerShape(12.dp)) {
             if (loading) CircularProgressIndicator(Modifier.size(17.dp), color = Color.White, strokeWidth = 2.dp)
             else Icon(Icons.Rounded.Sync, null)
             Spacer(Modifier.width(8.dp)); Text(if (loading) "CONSULTANDO…" else "CONSULTAR CATÁLOGO GITHUB", fontFamily = DisplayFont)
@@ -809,6 +827,13 @@ private fun GameInfoDialog(
     val coreId = when (game.platform) {
         Platform.GBA -> if (useGpSp) "gpsp" else "mgba"
         Platform.NEOGEO, Platform.ARCADE -> "fbneo"
+        Platform.NES -> "fceumm"
+        Platform.SNES -> "snes9x"
+        Platform.SEGA -> "genesis_plus_gx"
+        Platform.PS1 -> "pcsx_rearmed"
+        Platform.ATARI2600 -> "stella"
+        Platform.ATARI_LYNX -> "handy"
+        Platform.PC_ENGINE -> "mednafen_pce_fast"
     }
     val coreTitle = CoreCatalog.find(coreId)?.title ?: coreId
     val installed = installedCoreIds.contains(coreId)
@@ -870,11 +895,7 @@ private fun loadImportedGames(prefs: android.content.SharedPreferences): List<Ga
             title = file.name,
             platform = platform,
             subtitle = systemLabel(file.name, platform) + " • arquivo local",
-            accent = when (platform) {
-                Platform.GBA -> 0xFF00EFFF
-                Platform.NEOGEO -> 0xFFFF2DD6
-                else -> 0xFF8F5BFF
-            },
+            accent = platformAccent(platform),
             localPath = raw
         )
     }
@@ -900,19 +921,45 @@ private fun saveImportedGames(prefs: android.content.SharedPreferences, games: L
         .apply()
 }
 
+private fun platformAccent(platform: Platform): Long = when (platform) {
+    Platform.GBA, Platform.NES, Platform.SNES, Platform.ATARI_LYNX -> 0xFF00EFFF
+    Platform.NEOGEO, Platform.PS1 -> 0xFFFF2DD6
+    Platform.ARCADE, Platform.SEGA, Platform.ATARI2600, Platform.PC_ENGINE -> 0xFF8F5BFF
+}
+
 private fun systemLabel(filename: String, platform: Platform): String {
     return when (filename.substringAfterLast('.', "").lowercase()) {
         "gb" -> "Game Boy"
         "gbc" -> "Game Boy Color"
-        "gba" -> "Game Boy Advance"
+        "gba", "bin" -> if (platform == Platform.GBA) "Game Boy Advance" else platform.label
         else -> platform.label
     }
 }
 
 private fun detectPlatform(filename: String): Platform? {
-    return when (filename.substringAfterLast('.', "").lowercase()) {
+    val lower = filename.lowercase()
+    val extension = lower.substringAfterLast('.', "")
+    return when (extension) {
         "gba", "gb", "gbc", "bin" -> Platform.GBA
-        "zip", "7z" -> if (filename.lowercase().contains("neogeo")) Platform.NEOGEO else Platform.ARCADE
+        "nes", "fds", "unif", "unf" -> Platform.NES
+        "sfc", "smc", "swc", "fig", "bs", "st" -> Platform.SNES
+        "md", "mdx", "smd", "gen", "sms", "gg", "sg", "68k", "sgd" -> Platform.SEGA
+        "pbp", "cue", "ccd", "toc", "m3u", "img", "mdf", "iso" -> {
+            if (lower.contains("megacd") || lower.contains("sega_cd") || lower.contains("megacd")) Platform.SEGA
+            else Platform.PS1
+        }
+        "chd" -> when {
+            lower.contains("megacd") || lower.contains("sega_cd") -> Platform.SEGA
+            lower.contains("pce") || lower.contains("turbografx") -> Platform.PC_ENGINE
+            else -> Platform.PS1
+        }
+        "a26" -> Platform.ATARI2600
+        "lnx" -> Platform.ATARI_LYNX
+        "pce" -> Platform.PC_ENGINE
+        "zip", "7z" -> when {
+            lower.contains("neogeo") -> Platform.NEOGEO
+            else -> Platform.ARCADE
+        }
         else -> null
     }
 }
