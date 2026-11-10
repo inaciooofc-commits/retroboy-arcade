@@ -16,6 +16,10 @@ internal object NativeLibretroRuntime {
     ): String
 
     external fun nativeSetInputMask(mask: Int)
+    external fun nativeSetRemoteInputMask(mask: Int)
+    external fun nativeSetNetworkPlayerPort(port: Int)
+    external fun nativeGetFps(): Double
+    external fun nativeGetFrameCount(): Long
     external fun nativePause(paused: Boolean)
     external fun nativeGetSampleRate(): Int
     external fun nativeReadAudio(destination: ShortArray): Int

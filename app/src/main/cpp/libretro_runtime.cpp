@@ -54,6 +54,10 @@ struct Runtime {
     std::atomic<bool> running{false};
     std::atomic<bool> paused{false};
     std::atomic<uint16_t> inputMask{0};
+    std::atomic<uint16_t> remoteInputMask{0};
+    std::atomic<int> localPlayerPort{0};
+    std::atomic<uint64_t> frameCount{0};
+    std::atomic<double> measuredFps{0.0};
     std::mutex coreMutex;
     std::mutex audioMutex;
     static constexpr size_t AUDIO_CAPACITY = 65536;
@@ -190,8 +194,11 @@ static void inputPollCallback() {}
 
 static int16_t inputStateCallback(unsigned port, unsigned device, unsigned, unsigned id) {
     Runtime* r = gRuntime;
-    if (!r || port != 0 || device != RETRO_DEVICE_JOYPAD) return 0;
-    uint16_t mask = r->inputMask.load(std::memory_order_relaxed);
+    if (!r || port > 1 || device != RETRO_DEVICE_JOYPAD) return 0;
+    const int localPort = r->localPlayerPort.load(std::memory_order_relaxed);
+    const uint16_t mask = static_cast<int>(port) == localPort
+        ? r->inputMask.load(std::memory_order_relaxed)
+        : r->remoteInputMask.load(std::memory_order_relaxed);
     if (id == RETRO_DEVICE_ID_JOYPAD_MASK) return static_cast<int16_t>(mask);
     if (id < 16) return (mask & (1u << id)) ? 1 : 0;
     return 0;
@@ -300,6 +307,8 @@ static bool loadSymbol(void* handle, const char* name, void** output) {
 
 static void runLoop(Runtime* r) {
     auto nextFrame = std::chrono::steady_clock::now();
+    auto fpsWindowStart = nextFrame;
+    uint64_t framesInWindow = 0;
     while (r->running.load()) {
         if (r->paused.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -311,6 +320,15 @@ static void runLoop(Runtime* r) {
             std::lock_guard<std::mutex> lock(r->coreMutex);
             if (!r->running.load()) break;
             r->api.run();
+        }
+        r->frameCount.fetch_add(1, std::memory_order_relaxed);
+        ++framesInWindow;
+        const auto fpsNow = std::chrono::steady_clock::now();
+        const double elapsed = std::chrono::duration<double>(fpsNow - fpsWindowStart).count();
+        if (elapsed >= 1.0) {
+            r->measuredFps.store(static_cast<double>(framesInWindow) / elapsed, std::memory_order_relaxed);
+            framesInWindow = 0;
+            fpsWindowStart = fpsNow;
         }
         const double safeFps = std::clamp(r->fps, 20.0, 240.0);
         const auto frameDuration = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
@@ -478,6 +496,7 @@ Java_com_retroboy_arcade_emulation_NativeLibretroRuntime_nativeCreate(
     if (avInfo.timing.sample_rate > 8000.0) r->sampleRate = avInfo.timing.sample_rate;
     if (r->api.set_controller_port_device) {
         r->api.set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
+        r->api.set_controller_port_device(1, RETRO_DEVICE_JOYPAD);
     }
 
     r->paused.store(true);
@@ -491,6 +510,34 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_retroboy_arcade_emulation_NativeLibretroRuntime_nativeSetInputMask(JNIEnv*, jobject, jint mask) {
     if (gRuntime) gRuntime->inputMask.store(static_cast<uint16_t>(mask), std::memory_order_relaxed);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_retroboy_arcade_emulation_NativeLibretroRuntime_nativeSetRemoteInputMask(JNIEnv*, jobject, jint mask) {
+    if (gRuntime) gRuntime->remoteInputMask.store(static_cast<uint16_t>(mask), std::memory_order_relaxed);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_retroboy_arcade_emulation_NativeLibretroRuntime_nativeSetNetworkPlayerPort(JNIEnv*, jobject, jint port) {
+    if (gRuntime) gRuntime->localPlayerPort.store(port == 1 ? 1 : 0, std::memory_order_relaxed);
+}
+
+extern "C"
+JNIEXPORT jdouble JNICALL
+Java_com_retroboy_arcade_emulation_NativeLibretroRuntime_nativeGetFps(JNIEnv*, jobject) {
+    Runtime* r = gRuntime;
+    if (!r) return 0.0;
+    const double measured = r->measuredFps.load(std::memory_order_relaxed);
+    return measured > 0.0 ? measured : r->fps;
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_retroboy_arcade_emulation_NativeLibretroRuntime_nativeGetFrameCount(JNIEnv*, jobject) {
+    Runtime* r = gRuntime;
+    return r ? static_cast<jlong>(r->frameCount.load(std::memory_order_relaxed)) : 0;
 }
 
 extern "C"

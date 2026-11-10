@@ -157,13 +157,29 @@ class LibretroGameSession(
         }
     }
 
+    @Volatile
+    var onLocalInputChanged: ((Int) -> Unit)? = null
+
     @Synchronized
     fun setButton(buttonId: Int, pressed: Boolean) {
         if (closed || buttonId !in 0..15) return
         val bit = 1 shl buttonId
         inputMask = if (pressed) inputMask or bit else inputMask and bit.inv()
         NativeLibretroRuntime.nativeSetInputMask(inputMask)
+        onLocalInputChanged?.invoke(inputMask)
     }
+
+    fun setRemoteInputMask(mask: Int) {
+        if (!closed) NativeLibretroRuntime.nativeSetRemoteInputMask(mask)
+    }
+
+    fun setNetworkPlayerPort(port: Int) {
+        if (!closed) NativeLibretroRuntime.nativeSetNetworkPlayerPort(port.coerceIn(0, 1))
+    }
+
+    fun currentFps(): Double = if (closed) 0.0 else NativeLibretroRuntime.nativeGetFps()
+
+    fun frameCount(): Long = if (closed) 0L else NativeLibretroRuntime.nativeGetFrameCount()
 
     fun pause(paused: Boolean) {
         if (!closed) NativeLibretroRuntime.nativePause(paused)
@@ -189,6 +205,9 @@ class LibretroGameSession(
         closed = true
         inputMask = 0
         NativeLibretroRuntime.nativeSetInputMask(0)
+        onLocalInputChanged = null
+        NativeLibretroRuntime.nativeSetRemoteInputMask(0)
+        NativeLibretroRuntime.nativeSetNetworkPlayerPort(0)
         NativeLibretroRuntime.nativePause(true)
         audioJob?.cancel()
         saveJob?.cancel()
