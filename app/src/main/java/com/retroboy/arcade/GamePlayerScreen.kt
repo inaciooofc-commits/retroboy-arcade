@@ -83,7 +83,7 @@ fun GamePlayerScreen(
     var surfaceReady by remember { mutableStateOf(false) }
     val gameExtension = gamePath.substringAfterLast('.', "").lowercase()
     val gameAspectRatio = when (gameExtension) {
-        "gba" -> 3f / 2f
+        "gba", "bin" -> 3f / 2f
         "gb", "gbc" -> 10f / 9f
         else -> 4f / 3f
     }

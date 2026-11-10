@@ -805,7 +805,7 @@ private fun GameInfoDialog(
     onInstallCore: (String) -> Unit,
     onPlay: (String) -> Unit
 ) {
-    var useGpSp by remember(game.id) { mutableStateOf(false) }
+    var useGpSp by remember(game.id) { mutableStateOf(game.localPath?.endsWith(".bin", ignoreCase = true) == true) }
     val coreId = when (game.platform) {
         Platform.GBA -> if (useGpSp) "gpsp" else "mgba"
         Platform.NEOGEO, Platform.ARCADE -> "fbneo"
@@ -823,7 +823,7 @@ private fun GameInfoDialog(
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("SISTEMA  •  " + systemLabel(game.localPath?.let { File(it).name } ?: game.title, game.platform).uppercase(), color = Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Text("NÚCLEO  •  " + coreTitle, color = Color.White, fontSize = 12.sp)
-                if (game.platform == Platform.GBA && game.localPath?.endsWith(".gba", ignoreCase = true) == true) {
+                if (game.platform == Platform.GBA && (game.localPath?.endsWith(".gba", ignoreCase = true) == true || game.localPath?.endsWith(".bin", ignoreCase = true) == true)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Modo Wireless Adapter", color = Color.White, fontSize = 11.sp)
@@ -911,7 +911,7 @@ private fun systemLabel(filename: String, platform: Platform): String {
 
 private fun detectPlatform(filename: String): Platform? {
     return when (filename.substringAfterLast('.', "").lowercase()) {
-        "gba", "gb", "gbc" -> Platform.GBA
+        "gba", "gb", "gbc", "bin" -> Platform.GBA
         "zip", "7z" -> if (filename.lowercase().contains("neogeo")) Platform.NEOGEO else Platform.ARCADE
         else -> null
     }
