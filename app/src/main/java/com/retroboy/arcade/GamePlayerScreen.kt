@@ -1,6 +1,7 @@
 package com.retroboy.arcade
 
 import android.graphics.PixelFormat
+import androidx.activity.compose.BackHandler
 import android.view.KeyEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -80,8 +81,15 @@ fun GamePlayerScreen(
     var status by remember { mutableStateOf("Preparando o núcleo…") }
     var paused by remember { mutableStateOf(false) }
     var surfaceReady by remember { mutableStateOf(false) }
-    val stateFile = remember(title, saveDirectory) { File(saveDirectory, safeStateFileName(title)) }
+    val gameAspectRatio = if (gamePath.endsWith(".gba", ignoreCase = true)) 3f / 2f else 4f / 3f
+    val stateFile = remember(gamePath, saveDirectory) { File(saveDirectory, safeStateFileName(File(gamePath).nameWithoutExtension)) }
     var hasSaveState by remember { mutableStateOf(stateFile.isFile) }
+
+    BackHandler(enabled = true) {
+        sessionRef.value?.close()
+        sessionRef.value = null
+        onClose()
+    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -145,7 +153,7 @@ fun GamePlayerScreen(
         }
 
         Box(
-            Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(12.dp))
+            Modifier.fillMaxWidth().aspectRatio(gameAspectRatio).clip(RoundedCornerShape(12.dp))
                 .background(Color.Black).border(1.dp, PlayerPurple.copy(alpha = .45f), RoundedCornerShape(12.dp))
         ) {
             AndroidView(
