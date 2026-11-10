@@ -148,17 +148,21 @@ private fun RetroboyApp() {
         if (uri != null) {
             runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
             val name = queryDisplayName(context, uri)
-            val platform = detectPlatform(name)
-            if (platform == null) {
-                authMessage = "Formato não reconhecido. Compatíveis: GB/GBC/GBA, NES, SNES, Mega Drive, PS1, Atari 2600/Lynx, PC Engine e arquivos ZIP de arcade/Neo Geo."
-            } else {
-                authMessage = "Copiando o jogo para a biblioteca segura…"
-                scope.launch {
-                    runCatching { copyGameToPrivateStorage(context, uri, name) }
+            authMessage = "Analisando arquivo e preparando a ROM…"
+            scope.launch {
+                val platform = withContext(Dispatchers.IO) { detectPlatformForUri(context, uri, name) }
+                if (platform == null) {
+                    authMessage = "Formato não reconhecido. Compatíveis: GB/GBC/GBA, NES, SNES, Mega Drive, PS1 CHD/PBP/ISO, Atari, PC Engine e Arcade."
+                } else {
+                    runCatching { copyGameToPrivateStorage(context, uri, name, platform) }
                         .onSuccess { path ->
+                            val storedName = File(path).name
                             val entry = GameEntry(
-                                id = "local-" + path.hashCode(), title = name, platform = platform,
-                                subtitle = systemLabel(name, platform) + " • arquivo local", accent = platformAccent(platform),
+                                id = "local-" + path.hashCode(),
+                                title = File(name).nameWithoutExtension,
+                                platform = platform,
+                                subtitle = systemLabel(storedName, platform) + " • arquivo local",
+                                accent = platformAccent(platform),
                                 localPath = path
                             )
                             importedGames = (importedGames.filterNot { it.localPath == path } + entry)
@@ -1128,10 +1132,7 @@ private fun detectPlatform(filename: String): Platform? {
         "nes", "fds", "unif", "unf" -> Platform.NES
         "sfc", "smc", "swc", "fig", "bs", "st" -> Platform.SNES
         "md", "mdx", "smd", "gen", "sms", "gg", "sg", "68k", "sgd" -> Platform.SEGA
-        "pbp", "cue", "ccd", "toc", "m3u", "img", "mdf", "iso" -> {
-            if (lower.contains("megacd") || lower.contains("sega_cd") || lower.contains("megacd")) Platform.SEGA
-            else Platform.PS1
-        }
+        "pbp", "iso" -> Platform.PS1
         "chd" -> when {
             lower.contains("megacd") || lower.contains("sega_cd") -> Platform.SEGA
             lower.contains("pce") || lower.contains("turbografx") -> Platform.PC_ENGINE
@@ -1148,21 +1149,67 @@ private fun detectPlatform(filename: String): Platform? {
     }
 }
 
-private suspend fun copyGameToPrivateStorage(context: android.content.Context, uri: Uri, displayName: String): String =
+private suspend fun detectPlatformForUri(context: android.content.Context, uri: Uri, filename: String): Platform? =
     withContext(Dispatchers.IO) {
-        val directory = File(context.filesDir, "games")
-        if (!directory.exists() && !directory.mkdirs()) throw IOException("Não foi possível criar a biblioteca local.")
-        val safeName = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "game.rom" }
-        val destination = File(directory, System.currentTimeMillis().toString() + "_" + safeName)
-        val source = context.contentResolver.openInputStream(uri) ?: throw IOException("Não foi possível ler o arquivo selecionado.")
-        source.use { input ->
-            destination.outputStream().use { output -> input.copyTo(output) }
+        val byName = detectPlatform(filename)
+        if (!filename.endsWith(".zip", true)) return@withContext byName
+        val source = context.contentResolver.openInputStream(uri) ?: return@withContext byName
+        runCatching {
+            java.util.zip.ZipInputStream(source.buffered()).use { zip ->
+                var entry = zip.nextEntry
+                var consolePlatform: Platform? = null
+                while (entry != null) {
+                    if (!entry.isDirectory) {
+                        val ext = entry.name.substringAfterLast('.', "").lowercase()
+                        if (ext in setOf("gb", "gbc", "gba", "nes", "fds", "unif", "unf", "sfc", "smc", "swc", "fig", "bs", "st", "md", "mdx", "smd", "gen", "sms", "gg", "sg", "pbp", "chd", "iso", "a26", "lnx", "pce")) {
+                            consolePlatform = detectPlatform(entry.name)
+                            if (consolePlatform != null) break
+                        }
+                    }
+                    zip.closeEntry()
+                    entry = zip.nextEntry
+                }
+                consolePlatform ?: byName
+            }
+        }.getOrDefault(byName)
+    }
+
+private suspend fun copyGameToPrivateStorage(
+    context: android.content.Context,
+    uri: Uri,
+    displayName: String,
+    platform: Platform
+): String = withContext(Dispatchers.IO) {
+    val directory = File(context.filesDir, "games")
+    if (!directory.exists() && !directory.mkdirs()) throw IOException("Não foi possível criar a biblioteca local.")
+    val safeName = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "game.rom" }
+    val isConsoleZip = displayName.endsWith(".zip", true) && platform !in setOf(Platform.ARCADE, Platform.NEOGEO)
+    val source = context.contentResolver.openInputStream(uri) ?: throw IOException("Não foi possível ler o arquivo selecionado.")
+    if (isConsoleZip) {
+        java.util.zip.ZipInputStream(source.buffered()).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory && detectPlatform(entry.name) == platform) {
+                    val entryName = entry.name.substringAfterLast('/').replace(Regex("[^A-Za-z0-9._-]"), "_")
+                    val destination = File(directory, System.currentTimeMillis().toString() + "_" + entryName)
+                    destination.outputStream().use { output -> zip.copyTo(output) }
+                    if (destination.isFile && destination.length() > 0L) return@withContext destination.absolutePath
+                    destination.delete()
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
         }
+        throw IOException("O ZIP não contém uma ROM compatível com " + platform.label + ".")
+    } else {
+        val destination = File(directory, System.currentTimeMillis().toString() + "_" + safeName)
+        source.use { input -> destination.outputStream().use { output -> input.copyTo(output) } }
         if (!destination.isFile || destination.length() == 0L) {
             destination.delete()
             throw IOException("O arquivo importado está vazio ou incompleto.")
         }
         destination.absolutePath
+    }
 }
 
 private suspend fun copyBiosToSystem(context: android.content.Context, uri: Uri, displayName: String): String =
