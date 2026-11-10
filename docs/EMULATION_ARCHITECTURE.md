@@ -7,7 +7,7 @@
 | Neo Geo | FinalBurn Neo (FBNeo) | Bom suporte a Neo Geo e arcade; netplay disponível | Download/probe no 0.2; runtime pendente |
 | Arcade | FinalBurn Neo (FBNeo) | Ampla cobertura de placas clássicas e netplay | Download/probe no 0.2; runtime pendente |
 | GBA offline | mGBA | Prioridade em precisão e compatibilidade | Download/probe no 0.2; runtime pendente |
-| Pokémon FireRed online | gpSP | O core oferece netplay e emulação do adaptador sem fio GBA | Download/probe no 0.2; teste de jogo pendente |
+| Pokémon FireRed — trocas/batalhas sem fio | gpSP | O Libretro cita gpSP para emular o GBA Wireless Adapter; modos de FireRed precisam de teste real | Download/probe no 0.2; teste de jogo pendente |
 
 ## Por que Libretro
 
@@ -19,7 +19,7 @@ Nesta versão, o gerenciador baixa os pacotes Android ARM64/ARMv7 diretamente do
 
 A documentação do Libretro informa que o netplay genérico não é emulação de cabo link GBA. A exceção documentada para trocas Pokémon é o gpSP, que emula o GBA Wireless Adapter. Por isso, gpSP é a opção a testar para as funções sem fio de FireRed/LeafGreen; não se deve prometer que todos os modos de cabo link serão suportados.
 
-mGBA é a opção local/offline de maior precisão para GBA, mas seu core Libretro não anuncia netplay. Uma implementação experimental de link Wi-Fi baseada em mGBA existe, porém não deve ser a base da primeira versão estável.
+mGBA é a opção local/offline recomendada para GBA, mas seu core Libretro não anuncia netplay. Uma implementação experimental de link Wi-Fi baseada em mGBA existe, porém não deve ser a base da primeira versão estável.
 
 ## Multiplayer entre casas
 
@@ -45,3 +45,12 @@ mGBA é a opção local/offline de maior precisão para GBA, mas seu core Libret
 - mGBA: https://docs.libretro.com/library/mgba/
 - Netplay FAQ: https://docs.libretro.com/guides/netplay-faq/
 - Android ARM64 buildbot: https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/
+
+
+## Escopo real do multiplayer
+
+- O netplay do RetroArch sincroniza instâncias do mesmo core e do mesmo conteúdo; não é um serviço genérico de link cable GBA.
+- Para trocas Pokémon, o FAQ do Libretro cita gpSP por emular o GBA Wireless Adapter. A compatibilidade de batalhas sem fio de FireRed precisa ser validada em testes reais; não anunciar como concluída antes disso.
+- Para Neo Geo/Arcade, FBNeo anuncia suporte a netplay no ecossistema RetroArch, mas o Retroboy ainda precisa de um frontend/protocolo compatível.
+- O Supabase Realtime deve cuidar de contas, convites e sinalização, não transportar o vídeo/áudio nem o estado completo da emulação.
+- Para funcionar entre quaisquer duas casas, inclusive redes CGNAT, será necessário um TURN/relay gerenciado ou um relay de netplay compatível. Sem isso, conexão direta não é garantida.

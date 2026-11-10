@@ -1,16 +1,14 @@
--- Execute somente depois que inaciooofc@gmail.com tiver criado e confirmado
--- sua conta pelo fluxo de cadastro do aplicativo Retroboy Arcade.
--- Rode este script no SQL Editor do projeto Supabase como proprietário do projeto.
--- Nenhuma senha é armazenada neste arquivo.
+-- Execute no SQL Editor do projeto Supabase do Retroboy Arcade.
+-- A conta precisa existir e o e-mail precisa ter sido confirmado.
+-- Nunca inclua a senha neste arquivo.
 
 do $$
 begin
   if not exists (
-    select 1
-    from auth.users
+    select 1 from auth.users
     where lower(email) = lower('inaciooofc@gmail.com')
   ) then
-    raise exception 'A conta developer ainda não existe. Cadastre e confirme o e-mail no aplicativo primeiro.';
+    raise exception 'A conta ainda não existe. Cadastre e confirme o e-mail primeiro.';
   end if;
 end
 $$;

@@ -71,3 +71,12 @@ A tela Downloads agora pode baixar e validar as bibliotecas oficiais FBNeo, gpSP
 - A sincronização de partidas não está ativada nesta versão.
 
 Veja docs/EMULATION_ARCHITECTURE.md, docs/DEVELOPER_ACCOUNT.md e docs/VISUAL_IDENTITY.md.
+
+
+## Perfil do jogador e conta developer
+
+O perfil inclui quatro avatares do pacote gráfico, moldura neon, patente inicial, ID local, nome editável, nível/XP, estatísticas iniciais e medalhas bloqueadas. A role developer é concedida pelo Supabase ao endereço autorizado após o cadastro; a senha é definida pelo titular e não fica no repositório.
+
+## Emulação e multiplayer
+
+A versão atual ainda não executa ROMs. O gerenciador baixa e verifica as bibliotecas Libretro; falta concluir o frontend que chama `retro_run` e trata vídeo, áudio, input e saves. Para GBA, mGBA é a escolha offline; gpSP deve ser testado especificamente para o Wireless Adapter de FireRed. O netplay genérico não equivale a link cable GBA.

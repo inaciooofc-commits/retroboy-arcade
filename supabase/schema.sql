@@ -97,3 +97,34 @@ drop policy if exists "users read own role" on public.user_roles;
 create policy "users read own role" on public.user_roles
   for select to authenticated
   using ((select auth.uid()) = user_id);
+
+
+-- Assign a safe default role after signup. Only the allowlisted mailbox receives developer.
+create or replace function public.assign_retroboy_role()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.user_roles (user_id, role)
+  values (
+    new.id,
+    case
+      when lower(coalesce(new.email, '')) = lower('inaciooofc@gmail.com') then 'developer'
+      else 'player'
+    end
+  )
+  on conflict (user_id) do nothing;
+  return new;
+end;
+$$;
+
+revoke all on function public.assign_retroboy_role() from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_role_created on auth.users;
+create trigger on_auth_user_role_created
+  after insert on auth.users
+  for each row execute procedure public.assign_retroboy_role();
+
+revoke insert, update, delete on public.user_roles from anon, authenticated;

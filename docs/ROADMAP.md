@@ -62,3 +62,23 @@
 - [ ] gpSP Wireless Adapter com Pokémon FireRed/LeafGreen em duas casas.
 - [ ] Supabase Realtime para salas/convites, não para transportar frames.
 - [ ] TURN/relay como fallback quando conexão direta falhar.
+
+
+## Fase 1.2 — Perfil e acesso
+- [x] Avatares, moldura neon e patente inicial integrados.
+- [x] Nome e avatar editáveis com persistência local.
+- [x] ID único do jogador no aparelho.
+- [x] Role developer segura com RLS e trigger Supabase.
+- [ ] Criar o projeto Supabase dedicado e configurar secrets.
+
+## Fase 2 — Runtime de emulação
+- [ ] Host Libretro completo: environment, vídeo, áudio, input, retro_run e saves.
+- [ ] Tela de jogo com Surface/Texture, controles touch e gamepad.
+- [ ] Seleção automática de core por plataforma.
+- [ ] Testes com homebrew/ROMs legais e BIOS fornecidas pelo usuário.
+
+## Fase 3 — Multiplayer entre casas
+- [ ] FBNeo netplay compatível com o protocolo RetroArch.
+- [ ] gpSP Wireless Adapter para FireRed; validar trocas e batalhas em dois aparelhos.
+- [ ] Supabase Realtime para salas, convites e sinalização WebRTC.
+- [ ] TURN/relay gerenciado para redes CGNAT.
