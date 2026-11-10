@@ -264,9 +264,9 @@ private fun RetroboyApp() {
                                 supabaseConfigured = supabaseConfigured,
                                 onSaveSupabaseCredentials = { url, key ->
                                     securePrefs.putString("supabase_url", url.trim())
-                                    securePrefs.putString("supabase_anon_key", key.trim())
+                                    if (key.isNotBlank()) securePrefs.putString("supabase_anon_key", key.trim())
                                     supabaseUrl = url.trim()
-                                    supabaseConfigured = key.isNotBlank()
+                                    supabaseConfigured = supabaseConfigured || key.isNotBlank()
                                 },
                                 onOpenGames = { tab = "Jogos" }
                             )
@@ -958,7 +958,7 @@ private fun OnlineScreen(
                         onSaveSupabaseCredentials(url, anonKey)
                         anonKey = ""
                     },
-                    enabled = url.startsWith("https://") && anonKey.isNotBlank(),
+                    enabled = url.startsWith("https://") && (anonKey.isNotBlank() || supabaseConfigured),
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Purple)
                 ) { Text("SALVAR CONFIGURAÇÃO P2P") }
