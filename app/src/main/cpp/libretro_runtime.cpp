@@ -570,8 +570,8 @@ JNIEXPORT void JNICALL
 Java_com_retroboy_arcade_emulation_NativeLibretroRuntime_nativeDestroy(JNIEnv*, jobject) {
     if (!gRuntime) return;
     Runtime* r = gRuntime;
-    gRuntime = nullptr;
     cleanupRuntime(r);
+    gRuntime = nullptr;
     delete r;
 }
 
