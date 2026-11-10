@@ -66,7 +66,7 @@ private val Cyan = Color(0xFF00EFFF)
 private val Pink = Color(0xFFFF2DD6)
 private val Muted = Color(0xFF93A4C8)
 private val BrandFont = FontFamily(Font(R.font.stranger_title))
-private val DisplayFont = FontFamily(Font(R.font.nightwork))
+private val DisplayFont = FontFamily.SansSerif
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -766,7 +766,7 @@ private fun ProfileScreen(
                     )
                     Text("ESCOLHA SEU AVATAR", color = Cyan, fontFamily = DisplayFont, fontSize = 10.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        listOf("alien", "arcade", "fox", "knight", "ninja", "pilot", "pixel", "robot").forEach { option ->
+                        listOf("alien", "fox", "ninja", "robot").forEach { option ->
                             Box(
                                 Modifier.size(54.dp).clip(CircleShape)
                                     .border(2.dp, if (draftAvatar == option) Cyan else Muted.copy(alpha = .3f), CircleShape)
@@ -818,11 +818,7 @@ private fun PlayerAvatar(avatar: String, size: androidx.compose.ui.unit.Dp) {
 
 private fun avatarResource(avatar: String): Int = when (avatar) {
     "alien" -> R.drawable.avatar_alien
-    "arcade" -> R.drawable.avatar_arcade
-    "knight" -> R.drawable.avatar_knight
     "ninja" -> R.drawable.avatar_ninja
-    "pilot" -> R.drawable.avatar_pilot
-    "pixel" -> R.drawable.avatar_pixel
     "robot" -> R.drawable.avatar_robot
     else -> R.drawable.avatar_fox
 }
