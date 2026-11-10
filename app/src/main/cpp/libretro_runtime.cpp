@@ -41,6 +41,8 @@ struct CoreApi {
     decltype(&retro_serialize_size) serialize_size = nullptr;
     decltype(&retro_serialize) serialize = nullptr;
     decltype(&retro_unserialize) unserialize = nullptr;
+    decltype(&retro_get_memory_data) get_memory_data = nullptr;
+    decltype(&retro_get_memory_size) get_memory_size = nullptr;
     decltype(&retro_set_controller_port_device) set_controller_port_device = nullptr;
 };
 
@@ -402,6 +404,8 @@ Java_com_retroboy_arcade_emulation_NativeLibretroRuntime_nativeCreate(
     loadSymbol(r->handle, "retro_serialize_size", reinterpret_cast<void**>(&r->api.serialize_size));
     loadSymbol(r->handle, "retro_serialize", reinterpret_cast<void**>(&r->api.serialize));
     loadSymbol(r->handle, "retro_unserialize", reinterpret_cast<void**>(&r->api.unserialize));
+    loadSymbol(r->handle, "retro_get_memory_data", reinterpret_cast<void**>(&r->api.get_memory_data));
+    loadSymbol(r->handle, "retro_get_memory_size", reinterpret_cast<void**>(&r->api.get_memory_size));
     loadSymbol(r->handle, "retro_set_controller_port_device", reinterpret_cast<void**>(&r->api.set_controller_port_device));
 
     if (r->api.api_version() != RETRO_API_VERSION) {
@@ -458,6 +462,7 @@ Java_com_retroboy_arcade_emulation_NativeLibretroRuntime_nativeCreate(
         r->api.set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
     }
 
+    r->paused.store(true);
     r->running.store(true);
     r->worker = std::thread(runLoop, r);
     LOGI("Core started: %s, %.2f FPS, %.0f Hz", systemInfo.library_name ? systemInfo.library_name : "Libretro", r->fps, r->sampleRate);
@@ -550,4 +555,34 @@ Java_com_retroboy_arcade_emulation_NativeLibretroRuntime_nativeDestroy(JNIEnv*, 
     gRuntime = nullptr;
     cleanupRuntime(r);
     delete r;
+}
+
+
+extern "C"
+JNIEXPORT jbyteArray JNICALL
+Java_com_retroboy_arcade_emulation_NativeLibretroRuntime_nativeGetSaveRam(JNIEnv* env, jobject) {
+    Runtime* r = gRuntime;
+    if (!r || !r->api.get_memory_data || !r->api.get_memory_size) return nullptr;
+    std::lock_guard<std::mutex> lock(r->coreMutex);
+    const size_t size = r->api.get_memory_size(RETRO_MEMORY_SAVE_RAM);
+    void* memory = r->api.get_memory_data(RETRO_MEMORY_SAVE_RAM);
+    if (!memory || size == 0 || size > 32 * 1024 * 1024) return nullptr;
+    jbyteArray result = env->NewByteArray(static_cast<jsize>(size));
+    if (result) env->SetByteArrayRegion(result, 0, static_cast<jsize>(size), reinterpret_cast<const jbyte*>(memory));
+    return result;
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_retroboy_arcade_emulation_NativeLibretroRuntime_nativeSetSaveRam(JNIEnv* env, jobject, jbyteArray saveData) {
+    Runtime* r = gRuntime;
+    if (!r || !saveData || !r->api.get_memory_data || !r->api.get_memory_size) return JNI_FALSE;
+    std::lock_guard<std::mutex> lock(r->coreMutex);
+    const size_t coreSize = r->api.get_memory_size(RETRO_MEMORY_SAVE_RAM);
+    void* memory = r->api.get_memory_data(RETRO_MEMORY_SAVE_RAM);
+    const jsize inputSize = env->GetArrayLength(saveData);
+    if (!memory || coreSize == 0 || inputSize <= 0 || coreSize > 32 * 1024 * 1024) return JNI_FALSE;
+    const size_t copySize = std::min(coreSize, static_cast<size_t>(inputSize));
+    env->GetByteArrayRegion(saveData, 0, static_cast<jsize>(copySize), reinterpret_cast<jbyte*>(memory));
+    return JNI_TRUE;
 }

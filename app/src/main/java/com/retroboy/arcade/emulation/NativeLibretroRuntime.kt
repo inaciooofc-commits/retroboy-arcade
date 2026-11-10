@@ -21,6 +21,8 @@ internal object NativeLibretroRuntime {
     external fun nativeReadAudio(destination: ShortArray): Int
     external fun nativeSaveState(): ByteArray?
     external fun nativeLoadState(state: ByteArray): Boolean
+    external fun nativeGetSaveRam(): ByteArray?
+    external fun nativeSetSaveRam(saveData: ByteArray): Boolean
     external fun nativeReset()
     external fun nativeDestroy()
 }

@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.Closeable
+import java.io.File
 import java.io.IOException
 
 /**
@@ -29,7 +30,9 @@ class LibretroGameSession(
     private val audioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var audioTrack: AudioTrack? = null
     private var audioJob: Job? = null
+    private var saveJob: Job? = null
     private var inputMask: Int = 0
+    private val batteryFile = File(saveDirectory, File(contentPath).nameWithoutExtension + ".sav")
     @Volatile private var closed = false
 
     init {
@@ -40,7 +43,14 @@ class LibretroGameSession(
             NativeLibretroRuntime.nativeDestroy()
             throw IOException(result)
         }
+        runCatching {
+            if (batteryFile.isFile && batteryFile.length() in 1..(32L * 1024L * 1024L)) {
+                NativeLibretroRuntime.nativeSetSaveRam(batteryFile.readBytes())
+            }
+        }
+        NativeLibretroRuntime.nativePause(false)
         startAudio()
+        startBatteryAutosave()
     }
 
     private fun startAudio() {
@@ -84,12 +94,33 @@ class LibretroGameSession(
             while (isActive && !closed) {
                 val count = NativeLibretroRuntime.nativeReadAudio(samples)
                 if (count > 0) {
-                    val written = track.write(samples, 0, count, AudioTrack.WRITE_BLOCKING)
-                    if (written < 0) delay(5)
+                    var offset = 0
+                    while (offset < count && isActive && !closed) {
+                        val written = track.write(samples, offset, count - offset, AudioTrack.WRITE_BLOCKING)
+                        if (written > 0) offset += written else delay(4)
+                    }
                 } else {
                     delay(3)
                 }
             }
+        }
+    }
+
+    private fun startBatteryAutosave() {
+        saveJob = audioScope.launch {
+            while (isActive && !closed) {
+                delay(20_000)
+                persistBatteryRam()
+            }
+        }
+    }
+
+    private suspend fun persistBatteryRam() {
+        val bytes = NativeLibretroRuntime.nativeGetSaveRam() ?: return
+        if (bytes.isEmpty()) return
+        runCatching {
+            batteryFile.parentFile?.mkdirs()
+            batteryFile.writeBytes(bytes)
         }
     }
 
@@ -126,6 +157,14 @@ class LibretroGameSession(
         inputMask = 0
         NativeLibretroRuntime.nativeSetInputMask(0)
         audioJob?.cancel()
+        saveJob?.cancel()
+        runCatching {
+            val battery = NativeLibretroRuntime.nativeGetSaveRam()
+            if (battery != null && battery.isNotEmpty()) {
+                batteryFile.parentFile?.mkdirs()
+                batteryFile.writeBytes(battery)
+            }
+        }
         runCatching { audioTrack?.pause() }
         runCatching { audioTrack?.flush() }
         runCatching { audioTrack?.stop() }
