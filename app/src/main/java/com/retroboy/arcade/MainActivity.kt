@@ -98,6 +98,8 @@ private fun RetroboyApp() {
     var catalogCount by remember { mutableIntStateOf(0) }
     var catalogMessage by remember { mutableStateOf("Catálogo ainda não consultado") }
     var assetsLoading by remember { mutableStateOf(false) }
+    var biosCount by remember { mutableStateOf(File(context.filesDir, "system").listFiles()?.size ?: 0) }
+    var biosMessage by remember { mutableStateOf("") }
     var displayName by remember { mutableStateOf(prefs.getString("display_name", "").orEmpty()) }
     var selectedAvatar by remember { mutableStateOf(prefs.getString("avatar", "fox") ?: "fox") }
     val playerTag = remember {
@@ -118,6 +120,20 @@ private fun RetroboyApp() {
                     coreInstallMessage = error.message ?: "Falha ao instalar o núcleo."
                 }
                 installingCore = null
+            }
+        }
+    }
+
+    val biosPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            val name = queryDisplayName(context, uri)
+            scope.launch {
+                runCatching { copyBiosToSystem(context, uri, name) }
+                    .onSuccess { path ->
+                        biosCount = File(context.filesDir, "system").listFiles()?.size ?: 0
+                        biosMessage = "Arquivo de sistema importado: " + File(path).name
+                    }
+                    .onFailure { error -> biosMessage = error.message ?: "Falha ao importar BIOS." }
             }
         }
     }
@@ -227,6 +243,8 @@ private fun RetroboyApp() {
                                 count = catalogCount, message = catalogMessage, loading = assetsLoading,
                                 installedCoreIds = installedCoreIds, installingCore = installingCore,
                                 coreInstallMessage = coreInstallMessage,
+                                biosCount = biosCount, biosMessage = biosMessage,
+                                onImportBios = { biosPicker.launch(arrayOf("*/*")) },
                                 onInstallCore = installCore,
                                 onRefresh = {
                                     assetsLoading = true
@@ -450,6 +468,9 @@ private fun DownloadsScreen(
     installedCoreIds: Set<String>,
     installingCore: String?,
     coreInstallMessage: String,
+    biosCount: Int,
+    biosMessage: String,
+    onImportBios: () -> Unit,
     onInstallCore: (String) -> Unit,
     onRefresh: () -> Unit
 ) {
@@ -520,8 +541,22 @@ private fun DownloadsScreen(
         if (coreInstallMessage.isNotBlank()) {
             Text(coreInstallMessage, color = if (coreInstallMessage.contains("instalado")) Color(0xFF4AFFA3) else Cyan, fontSize = 10.sp)
         }
-        Text("A instalação verifica o arquivo nativo e a ABI do aparelho. O runtime que executa os jogos e o netplay integrado ainda precisam ser concluídos.", color = Muted, fontSize = 10.sp)
-        Text("O catálogo será ativado quando o manifesto GitHub estiver publicado.", color = Muted, fontSize = 10.sp)
+        SectionTitle("BIOS & SISTEMAS", "ARQUIVOS FORNECIDOS PELO JOGADOR")
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Panel).padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.FolderOpen, null, tint = Cyan)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Pasta system/", color = Color.White, fontFamily = DisplayFont, fontSize = 14.sp)
+                Text(biosCount.toString() + " arquivos de sistema importados", color = Muted, fontSize = 9.sp)
+            }
+            Button(onClick = onImportBios, colors = ButtonDefaults.buttonColors(containerColor = Purple), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)) {
+                Text("IMPORTAR", fontFamily = DisplayFont, fontSize = 9.sp)
+            }
+        }
+        if (biosMessage.isNotBlank()) Text(biosMessage, color = Cyan, fontSize = 9.sp)
+        Text("Para Neo Geo, importe o arquivo de BIOS neogeo.zip que você possui. O Retroboy não fornece BIOS nem ROMs comerciais.", color = Muted, fontSize = 9.sp)
+        Text("O runtime Libretro para partidas individuais já está integrado: vídeo, áudio, controles touch/gamepad e saves. A compatibilidade precisa ser validada em aparelho real; o multiplayer entre casas ainda está em desenvolvimento.", color = Muted, fontSize = 10.sp)
+        Text("O catálogo de capas e conteúdos é separado dos núcleos, que são baixados do Buildbot oficial Libretro.", color = Muted, fontSize = 9.sp)
         Spacer(Modifier.height(12.dp))
     }
 }
@@ -889,6 +924,21 @@ private suspend fun copyGameToPrivateStorage(context: android.content.Context, u
         }
         destination.absolutePath
 }
+
+private suspend fun copyBiosToSystem(context: android.content.Context, uri: Uri, displayName: String): String =
+    withContext(Dispatchers.IO) {
+        val directory = File(context.filesDir, "system")
+        if (!directory.exists() && !directory.mkdirs()) throw IOException("Não foi possível criar a pasta system/.")
+        val safeName = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "system.bin" }
+        val destination = File(directory, safeName)
+        val source = context.contentResolver.openInputStream(uri) ?: throw IOException("Não foi possível ler o arquivo de BIOS.")
+        source.use { input -> destination.outputStream().use { output -> input.copyTo(output) } }
+        if (!destination.isFile || destination.length() == 0L) {
+            destination.delete()
+            throw IOException("O arquivo de BIOS está vazio ou incompleto.")
+        }
+        destination.absolutePath
+    }
 
 private fun queryDisplayName(context: android.content.Context, uri: Uri): String {
     return runCatching {
