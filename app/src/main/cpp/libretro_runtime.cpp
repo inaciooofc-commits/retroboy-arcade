@@ -113,7 +113,8 @@ static bool environmentCallback(unsigned command, void* data) {
             if (data) *static_cast<const char**>(data) = r->saveDir.c_str();
             return true;
         case RETRO_ENVIRONMENT_GET_CONTENT_DIRECTORY:
-            if (data) *static_cast<const char**>(data) = r->contentDir.c_str();
+            // Deprecated alias of GET_CORE_ASSETS_DIRECTORY in libretro.h.
+            if (data) *static_cast<const char**>(data) = r->systemDir.c_str();
             return true;
         case RETRO_ENVIRONMENT_GET_USERNAME:
             if (data) *static_cast<const char**>(data) = "Retroboy Player";
