@@ -34,7 +34,7 @@ class LibretroGameSession(
     private var audioJob: Job? = null
     private var saveJob: Job? = null
     private var inputMask: Int = 0
-    private val batteryFile = File(saveDirectory, File(contentPath).nameWithoutExtension + ".sav")
+    private val batteryFile = File(saveDirectory, File(contentPath).nameWithoutExtension + ".srm")
     @Volatile private var closed = false
 
     init {
