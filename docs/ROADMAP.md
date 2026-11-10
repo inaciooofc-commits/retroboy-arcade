@@ -80,8 +80,8 @@
 ## Fase 3 — Multiplayer entre casas
 - [ ] FBNeo netplay compatível com o protocolo RetroArch.
 - [ ] gpSP Wireless Adapter para FireRed; validar trocas e batalhas em dois aparelhos.
-- [ ] Supabase Realtime para salas, convites e sinalização WebRTC.
-- [ ] TURN/relay gerenciado para redes CGNAT.
+- [ ] Supabase Realtime para salas, convites e presença.
+- [ ] Portar/integrar protocolo netplay RetroArch e testar Relay Server público (sem servidor próprio do jogador).
 
 
 ## Fase 2 — Runtime single-player

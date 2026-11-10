@@ -24,7 +24,7 @@ object CoreCatalog {
             id = "gpsp",
             title = "gpSP",
             systems = "Game Boy Advance",
-            description = "Opção para multiplayer GBA e adaptador sem fio; testar os modos de FireRed.",
+            description = "Core a testar para trocas Pokémon via GBA Wireless Adapter; não é link cable genérico.",
             license = "GPL-2.0",
             netplay = true
         ),

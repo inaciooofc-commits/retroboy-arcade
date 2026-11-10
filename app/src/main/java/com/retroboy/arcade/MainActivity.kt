@@ -827,11 +827,11 @@ private fun GameInfoDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Modo Wireless Adapter", color = Color.White, fontSize = 11.sp)
-                            Text("gpSP experimental para recursos sem fio de FireRed", color = Muted, fontSize = 9.sp)
+                            Text("gpSP experimental para trocas Pokémon via Wireless Adapter; não garante batalhas", color = Muted, fontSize = 9.sp)
                         }
                         Switch(checked = useGpSp, onCheckedChange = { useGpSp = it })
                     }
-                    Text("O modo online entre casas ainda não está ativado. mGBA é a escolha padrão para jogar GBA offline.", color = Muted, fontSize = 9.sp)
+                    Text("Netplay genérico não é link cable GBA. gpSP é citado para trocas Pokémon via Wireless Adapter; batalhas precisam de teste. mGBA é o padrão offline.", color = Muted, fontSize = 9.sp)
                 }
                 Text(
                     when {

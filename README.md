@@ -67,7 +67,7 @@ A tela Downloads baixa e valida as bibliotecas oficiais FBNeo, gpSP e mGBA para 
 
 - Neo Geo/Arcade: FBNeo é o núcleo principal e suporta netplay, mas sua licença é não comercial.
 - GBA offline: mGBA é a opção de precisão/compatibilidade.
-- Pokémon FireRed online: gpSP é a opção experimental indicada por oferecer netplay e emulação do adaptador sem fio GBA. Os modos de troca/batalha precisam ser validados com duas cópias idênticas do jogo.
+- Pokémon FireRed: gpSP é o core a testar para trocas Pokémon via GBA Wireless Adapter. Isso não equivale a link cable GBA genérico e não garante batalhas; validar com dois aparelhos e cópias idênticas.
 - A sincronização de partidas entre casas não está ativada nesta versão.
 
 Veja docs/EMULATION_ARCHITECTURE.md, docs/DEVELOPER_ACCOUNT.md e docs/VISUAL_IDENTITY.md.

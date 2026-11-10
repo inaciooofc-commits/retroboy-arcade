@@ -17,9 +17,9 @@ O gerenciador baixa os pacotes Android ARM64/ARMv7/x86_64 diretamente do buildbo
 
 ## Pokémon FireRed e multiplayer GBA
 
-A documentação do Libretro informa que o netplay genérico não é emulação de cabo link GBA. A exceção documentada para trocas Pokémon é o gpSP, que emula o GBA Wireless Adapter. Por isso, gpSP é a opção a testar para as funções sem fio de FireRed/LeafGreen; não se deve prometer que todos os modos de cabo link serão suportados.
+O FAQ oficial do Libretro é explícito: o netplay genérico do RetroArch não é emulação de link cable para GBA. A exceção citada para Pokémon é o gpSP, que emula o GBA Wireless Adapter e permite testar **trocas Pokémon**. Isso não garante batalhas sem fio nem compatibilidade com todos os recursos de FireRed/LeafGreen; validar em dois aparelhos antes de anunciar suporte.
 
-mGBA é a opção local/offline recomendada para GBA, mas seu core Libretro não anuncia netplay. Uma implementação experimental de link Wi-Fi baseada em mGBA existe, porém não deve ser a base da primeira versão estável.
+mGBA é a opção local/offline recomendada para GBA, mas seu core Libretro não anuncia netplay. Para FireRed, manter gpSP como opção experimental e mGBA como padrão offline.
 
 ## Multiplayer entre casas
 
@@ -66,3 +66,10 @@ mGBA é a opção local/offline recomendada para GBA, mas seu core Libretro não
 - Save states usam `retro_serialize`/`retro_unserialize`; bateria usa `RETRO_MEMORY_SAVE_RAM` e é persistida em `filesDir/saves/`.
 - BIOS do usuário ficam em `filesDir/system/`. Para Neo Geo, importe `neogeo.zip`.
 - O runtime é single-player nesta etapa. A existência de netplay no core não significa que o frontend Retroboy já implemente a conexão.
+
+
+## Referências oficiais para multiplayer
+
+- Netplay FAQ: https://docs.libretro.com/guides/netplay-faq/
+- Netplay Getting Started (Relay Server): https://docs.libretro.com/guides/netplay-getting-started/
+- Netplay internals/rollback protocol: https://docs.libretro.com/development/retroarch/netplay/
