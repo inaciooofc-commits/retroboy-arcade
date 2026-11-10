@@ -56,12 +56,21 @@ class LibretroGameSession(
     }
 
     private fun startAudio() {
-        val sampleRate = NativeLibretroRuntime.nativeGetSampleRate().coerceIn(8000, 96000)
-        val minBytes = AudioTrack.getMinBufferSize(
-            sampleRate,
+        val coreRate = NativeLibretroRuntime.nativeGetSampleRate().coerceIn(8000, 96000)
+        var outputRate = coreRate
+        var minBytes = AudioTrack.getMinBufferSize(
+            outputRate,
             AudioFormat.CHANNEL_OUT_STEREO,
             AudioFormat.ENCODING_PCM_16BIT
         )
+        if (minBytes <= 0) {
+            outputRate = 48_000
+            minBytes = AudioTrack.getMinBufferSize(
+                outputRate,
+                AudioFormat.CHANNEL_OUT_STEREO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+        }
         if (minBytes <= 0) return
 
         val track = runCatching {
@@ -75,11 +84,11 @@ class LibretroGameSession(
                 .setAudioFormat(
                     AudioFormat.Builder()
                         .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                        .setSampleRate(sampleRate)
+                        .setSampleRate(outputRate)
                         .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
                         .build()
                 )
-                .setBufferSizeInBytes(maxOf(minBytes * 2, sampleRate * 8 / 5))
+                .setBufferSizeInBytes(maxOf(minBytes * 2, outputRate * 8 / 5))
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
         }.getOrNull() ?: return
@@ -95,10 +104,12 @@ class LibretroGameSession(
             val samples = ShortArray(4096)
             while (isActive && !closed) {
                 val count = NativeLibretroRuntime.nativeReadAudio(samples)
-                if (count > 0) {
+                if (count > 1) {
+                    val output = if (outputRate == coreRate) samples else resampleStereo(samples, count, coreRate, outputRate)
+                    val outputCount = if (outputRate == coreRate) count else output.size
                     var offset = 0
-                    while (offset < count && isActive && !closed) {
-                        val written = track.write(samples, offset, count - offset, AudioTrack.WRITE_BLOCKING)
+                    while (offset < outputCount && isActive && !closed) {
+                        val written = track.write(output, offset, outputCount - offset, AudioTrack.WRITE_BLOCKING)
                         if (written > 0) offset += written else delay(4)
                     }
                 } else {
@@ -106,6 +117,26 @@ class LibretroGameSession(
                 }
             }
         }
+    }
+
+    private fun resampleStereo(input: ShortArray, sampleCount: Int, fromRate: Int, toRate: Int): ShortArray {
+        val frames = sampleCount / 2
+        if (frames <= 1 || fromRate == toRate) return input.copyOf(sampleCount)
+        val outputFrames = maxOf(1, (frames.toLong() * toRate / fromRate).toInt())
+        val output = ShortArray(outputFrames * 2)
+        for (frame in 0 until outputFrames) {
+            val sourcePosition = frame.toDouble() * fromRate / toRate
+            val leftIndex = sourcePosition.toInt().coerceIn(0, frames - 1)
+            val rightIndex = (leftIndex + 1).coerceAtMost(frames - 1)
+            val fraction = sourcePosition - leftIndex
+            for (channel in 0..1) {
+                val a = input[leftIndex * 2 + channel].toDouble()
+                val b = input[rightIndex * 2 + channel].toDouble()
+                output[frame * 2 + channel] = (a + (b - a) * fraction)
+                    .toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+        }
+        return output
     }
 
     private fun startBatteryAutosave() {
