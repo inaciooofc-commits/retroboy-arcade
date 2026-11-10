@@ -340,10 +340,11 @@ class P2pRoomClient(
     }
 
     override fun close() {
+        if (closed.get()) return
+        runCatching { signal("leave") }
         if (!closed.compareAndSet(false, true)) return
         heartbeat?.cancel()
         helloLoop?.cancel()
-        runCatching { signal("leave") }
         onRemoteInput(0)
         runCatching { channel?.unregisterObserver(); channel?.close(); channel?.dispose() }
         channel = null

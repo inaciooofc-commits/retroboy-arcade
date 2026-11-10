@@ -44,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -190,14 +191,15 @@ fun GamePlayerScreen(
 
     BackHandler(enabled = true) { closeGame() }
 
+    val latestP2pClient by rememberUpdatedState(p2pClient)
+    val latestSession by rememberUpdatedState(sessionRef.value)
     DisposableEffect(Unit) {
         onDispose {
-            p2pClient?.close()
-            sessionRef.value?.onLocalInputChanged = null
-            sessionRef.value?.setRemoteInputMask(0)
-            sessionRef.value?.setNetworkPlayerPort(0)
-            sessionRef.value?.close()
-            sessionRef.value = null
+            latestP2pClient?.close()
+            latestSession?.onLocalInputChanged = null
+            latestSession?.setRemoteInputMask(0)
+            latestSession?.setNetworkPlayerPort(0)
+            latestSession?.close()
         }
     }
 
