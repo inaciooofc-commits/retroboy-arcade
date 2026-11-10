@@ -1,100 +1,46 @@
-# Roadmap técnico
+# Roadmap — Retroboy Arcade
 
-## Fase 0 — Fundação (esta entrega)
-- [x] Projeto Android Kotlin/Compose
-- [x] Identidade visual inicial Retroboy Arcade
-- [x] Tela de cadastro/login Supabase Auth REST
-- [x] Modo convidado
-- [x] Importação local de arquivos
-- [x] Catálogo JSON inicial
-- [x] Conquistas iniciais
-- [x] Esquema SQL com RLS
-- [x] Workflow de APK debug
+## 0.3.0-alpha — base Android e runtime single-player
 
-## Fase 1 — Emulação local
-- [ ] Selecionar versões e licenças dos núcleos FBNeo e gpSP
-- [ ] Compilar bibliotecas nativas ARM64
-- [ ] Integrar Libretro frontend / JNI
-- [ ] Implementar áudio, vídeo, input e save states
-- [ ] Testar ROMs homebrew e arquivos próprios
-
-## Fase 2 — Conta e catálogo
-- [ ] Persistir sessão de forma segura com Android Keystore
-- [ ] Perfil editável e username único
-- [ ] Sincronizar conquistas e configurações
-- [ ] DownloadManager com SHA-256 e retomada
-- [ ] Atualização de manifestos e artwork
-
-## Fase 3 — Multiplayer
-- [ ] Avaliar Netplay FBNeo Android
-- [ ] Implementar sinalização P2P
-- [ ] Testar STUN e conectividade em redes CGNAT
-- [ ] Implementar RFU GBA e validar Pokémon FireRed
-- [ ] Adicionar TURN somente se a conexão direta não bastar
-
-## Fase 4 — Qualidade e release
-- [ ] Testes em aparelhos ARM64 de entrada/intermediários/avançados
-- [ ] Testes de consumo de bateria e memória
-- [ ] Testes de reconexão e integridade de saves
-- [ ] Assinatura de release e publicação
-
-
-## Fase 1.1 — Gerenciador de núcleos (0.3.0-alpha)
-- [x] Fontes Stranger e NightWork integradas como recursos Android.
-- [x] Catálogo dos núcleos oficiais FBNeo, gpSP e mGBA.
-- [x] Download e extração segura por ABI.
-- [x] Verificação de exports Libretro via dlopen/dlsym.
-- [x] Esquema seguro de papel developer no Supabase.
-- [ ] Criar projeto Supabase exclusivo e configurar secrets.
-- [ ] Criar usuário developer e atribuir role via SQL Editor.
-- [ ] Integrar runtime Libretro completo (vídeo, áudio, input, saves).
-
-## Fase 2 — Emulação real
-- [ ] Implementar frontend Libretro nativo e Surface/EGL.
-- [ ] Controles touch configuráveis e suporte a gamepad Bluetooth/USB.
-- [ ] Testar FBNeo com homebrew e ROMs do usuário.
-- [ ] Testar gpSP e mGBA com homebrew e saves.
-- [ ] Verificar estabilidade em aparelhos Android de entrada e intermediários.
-
-## Fase 3 — Multiplayer
-- [ ] Reutilizar/portar protocolo de netplay compatível com Libretro.
-- [ ] FBNeo netplay em duas casas, incluindo relay/NAT traversal.
-- [ ] gpSP Wireless Adapter com Pokémon FireRed/LeafGreen em duas casas.
-- [ ] Supabase Realtime para salas/convites, não para transportar frames.
-- [ ] TURN/relay como fallback quando conexão direta falhar.
-
-
-## Fase 1.2 — Perfil e acesso
-- [x] Avatares, moldura neon e patente inicial integrados.
-- [x] Nome e avatar editáveis com persistência local.
-- [x] ID único do jogador no aparelho.
-- [x] Role developer segura com RLS e trigger Supabase.
-- [ ] Criar o projeto Supabase dedicado e configurar secrets.
-
-## Fase 2 — Runtime de emulação
-- [ ] Host Libretro completo: environment, vídeo, áudio, input, retro_run e saves.
-- [ ] Tela de jogo com Surface/Texture, controles touch e gamepad.
-- [ ] Seleção automática de core por plataforma.
-- [ ] Testes com homebrew/ROMs legais e BIOS fornecidas pelo usuário.
-
-## Fase 3 — Multiplayer entre casas
-- [ ] FBNeo netplay compatível com o protocolo RetroArch.
-- [ ] gpSP Wireless Adapter para FireRed; validar trocas e batalhas em dois aparelhos.
-- [ ] Supabase Realtime para salas, convites e presença.
-- [ ] Portar/integrar protocolo netplay RetroArch e testar Relay Server público (sem servidor próprio do jogador).
-
-
-## Fase 2 — Runtime single-player
-- [x] Host Libretro nativo e carregamento de cores.
-- [x] Renderização de vídeo em SurfaceView.
-- [x] Áudio estéreo por AudioTrack.
+- [x] Interface Compose, navegação e perfil do jogador.
+- [x] Fonte personalizada, avatares, moldura neon e patente inicial.
+- [x] Nome editável, avatar e ID local.
+- [x] Estrutura de autenticação Supabase e role developer com RLS.
+- [x] Importação privada de ROMs GB/GBC/GBA e arcade ZIP/7z.
+- [x] Importação de BIOS próprias.
+- [x] Download e verificação dos cores FBNeo, gpSP e mGBA.
+- [x] Host Libretro JNI/C++ com `retro_run`.
+- [x] Vídeo em SurfaceView e áudio estéreo via AudioTrack.
 - [x] Controles touch e gamepad Bluetooth/USB.
-- [x] Save states e persistência de SRAM.
-- [x] Importação de ROMs e BIOS próprias.
-- [ ] Validar FBNeo, mGBA e gpSP com jogos reais em aparelhos físicos.
+- [x] Save states e persistência periódica de SRAM.
+- [x] Build Android em GitHub Actions.
 
-## Fase 3 — Multiplayer entre casas
-- [ ] Integrar protocolo netplay RetroArch/FBNeo.
-- [ ] Validar gpSP Wireless Adapter em FireRed para trocas e batalhas.
-- [ ] Supabase Realtime para salas, convites e sinalização WebRTC.
-- [ ] TURN/relay gerenciado para redes CGNAT.
+## 0.3.1 — validação em aparelhos reais
+
+- [ ] Testar FBNeo com romsets legais/homebrew e BIOS Neo Geo do usuário.
+- [ ] Testar mGBA com GB, GBC e GBA, saves e save states.
+- [ ] Testar gpSP com FireRed; validar somente trocas Wireless Adapter antes de ampliar a promessa.
+- [ ] Testar áudio, latência de input, rotação, proporção de tela e desempenho em aparelhos de entrada/intermediários.
+- [ ] Melhorar feedback de download e instalação dos cores.
+- [ ] Validar recuperação de saves após fechar/forçar encerramento.
+
+## 0.4 — multiplayer
+
+- [ ] Integrar/portar protocolo de netplay RetroArch para FBNeo.
+- [ ] Testar conexão direta e Relay Server público sem servidor próprio do jogador.
+- [ ] Supabase Realtime para contas, presença, salas e convites.
+- [ ] Validar gpSP Wireless Adapter para trocas Pokémon entre dois aparelhos.
+- [ ] Não anunciar link cable genérico ou batalhas FireRed sem testes específicos.
+
+## Backend e social
+
+- [ ] Criar projeto Supabase dedicado e aplicar schema.
+- [ ] Configurar secrets de build.
+- [ ] Criar conta developer pelo fluxo de cadastro do app e validar role.
+- [ ] Sincronizar perfil, estatísticas, conquistas e amigos.
+
+## Identidade visual
+
+- [x] Fonte do título e tipografia de display.
+- [x] Recursos de avatar, moldura e patente do perfil.
+- [ ] Integrar o restante do pacote gráfico completo: telas, barras, ícones, navegação e componentes.
