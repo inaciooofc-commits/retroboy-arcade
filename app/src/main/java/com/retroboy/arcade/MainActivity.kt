@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import java.io.File
+import java.io.IOException
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -48,7 +50,9 @@ import com.retroboy.arcade.emulation.CoreInstaller
 import com.retroboy.arcade.model.Achievement
 import com.retroboy.arcade.model.GameEntry
 import com.retroboy.arcade.model.Platform
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 private val Night = Color(0xFF070918)
@@ -78,6 +82,8 @@ private fun RetroboyApp() {
     var authVisible by remember { mutableStateOf(email.isBlank() && !guest) }
     var createAccount by remember { mutableStateOf(false) }
     var selectedGame by remember { mutableStateOf<GameEntry?>(null) }
+    var playingGame by remember { mutableStateOf<GameEntry?>(null) }
+    var playingCoreId by remember { mutableStateOf("fbneo") }
     var importedGames by remember { mutableStateOf(loadImportedGames(prefs)) }
     var authMessage by remember { mutableStateOf("") }
     val authRepository = remember { AuthRepository() }
@@ -100,15 +106,53 @@ private fun RetroboyApp() {
         }
     }
 
+    val installCore: (String) -> Unit = { coreId ->
+        if (installingCore == null && !installedCoreIds.contains(coreId)) {
+            installingCore = coreId
+            coreInstallMessage = "Baixando núcleo oficial do Libretro…"
+            scope.launch {
+                coreInstaller.install(coreId).onSuccess { installed ->
+                    installedCoreIds = coreInstaller.installedCoreIds()
+                    coreInstallMessage = installed.title + " instalado e validado. Já pode ser selecionado para iniciar o jogo."
+                }.onFailure { error ->
+                    coreInstallMessage = error.message ?: "Falha ao instalar o núcleo."
+                }
+                installingCore = null
+            }
+        }
+    }
+
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri != null) {
             runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
             val name = queryDisplayName(context, uri)
-            val entry = GameEntry("local-${uri.toString().hashCode()}", name, Platform.ARCADE, "Arquivo local importado", 0xFF45D9E8, uri.toString())
-            importedGames = (importedGames.filterNot { it.importedUri == uri.toString() } + entry)
-            saveImportedGames(prefs, importedGames)
-            authMessage = "Arquivo adicionado à biblioteca. O núcleo de emulação ainda precisa ser integrado."
-            tab = "Jogos"
+            val platform = detectPlatform(name)
+            if (platform == null) {
+                authMessage = "Formato não reconhecido. Importe arquivos .gba ou .zip de arcade/Neo Geo."
+            } else {
+                authMessage = "Copiando o jogo para a biblioteca segura…"
+                scope.launch {
+                    runCatching { copyGameToPrivateStorage(context, uri, name) }
+                        .onSuccess { path ->
+                            val entry = GameEntry(
+                                id = "local-" + path.hashCode(), title = name, platform = platform,
+                                subtitle = platform.label + " • arquivo local", accent = when (platform) {
+                                    Platform.GBA -> 0xFF00EFFF
+                                    Platform.NEOGEO -> 0xFFFF2DD6
+                                    else -> 0xFF8F5BFF
+                                },
+                                localPath = path
+                            )
+                            importedGames = (importedGames.filterNot { it.localPath == path } + entry)
+                            saveImportedGames(prefs, importedGames)
+                            authMessage = "Jogo importado. Instale o núcleo correspondente para iniciar."
+                            tab = "Jogos"
+                        }
+                        .onFailure { error ->
+                            authMessage = error.message ?: "Não foi possível importar esse arquivo."
+                        }
+                }
+            }
         }
     }
 
@@ -143,6 +187,30 @@ private fun RetroboyApp() {
                         }
                     }
                 )
+            } else if (playingGame != null) {
+                val game = playingGame!!
+                val corePath = coreInstaller.installedCorePath(playingCoreId)
+                val gamePath = game.localPath
+                if (corePath != null && gamePath != null && File(gamePath).isFile) {
+                    val systemDirectory = File(context.filesDir, "system").apply { mkdirs() }.absolutePath
+                    val saveDirectory = File(context.filesDir, "saves").apply { mkdirs() }.absolutePath
+                    GamePlayerScreen(
+                        title = game.title,
+                        corePath = corePath,
+                        gamePath = gamePath,
+                        systemDirectory = systemDirectory,
+                        saveDirectory = saveDirectory,
+                        onClose = { playingGame = null }
+                    )
+                } else {
+                    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
+                        Text("Não foi possível abrir este jogo.", color = Color.White, fontFamily = DisplayFont, fontSize = 20.sp)
+                        Text("Confira se o arquivo continua na biblioteca e se o núcleo correspondente está instalado.", color = Muted, fontSize = 12.sp)
+                        Button(onClick = { playingGame = null; tab = "Downloads" }, colors = ButtonDefaults.buttonColors(containerColor = Purple)) {
+                            Text("ABRIR DOWNLOADS")
+                        }
+                    }
+                }
             } else {
                 Column(Modifier.fillMaxSize()) {
                     Header(email = email, guest = guest, isDeveloper = isDeveloper)
@@ -159,21 +227,7 @@ private fun RetroboyApp() {
                                 count = catalogCount, message = catalogMessage, loading = assetsLoading,
                                 installedCoreIds = installedCoreIds, installingCore = installingCore,
                                 coreInstallMessage = coreInstallMessage,
-                                onInstallCore = { coreId ->
-                                    if (installingCore == null && !installedCoreIds.contains(coreId)) {
-                                        installingCore = coreId
-                                        coreInstallMessage = "Baixando núcleo oficial do Libretro…"
-                                        scope.launch {
-                                            coreInstaller.install(coreId).onSuccess { installed ->
-                                                installedCoreIds = coreInstaller.installedCoreIds()
-                                                coreInstallMessage = installed.title + " instalado e validado (" + installed.sha256.take(12) + "). O runtime de execução ainda está em integração."
-                                            }.onFailure { error ->
-                                                coreInstallMessage = error.message ?: "Falha ao instalar o núcleo."
-                                            }
-                                            installingCore = null
-                                        }
-                                    }
-                                },
+                                onInstallCore = installCore,
                                 onRefresh = {
                                     assetsLoading = true
                                     scope.launch {
@@ -206,8 +260,26 @@ private fun RetroboyApp() {
                     BottomBar(tab = tab, onSelect = { tab = it })
                 }
             }
-            selectedGame?.let { game ->
-                GameInfoDialog(game = game, onDismiss = { selectedGame = null })
+            if (playingGame == null && !authVisible) {
+                selectedGame?.let { game ->
+                    GameInfoDialog(
+                        game = game,
+                        installedCoreIds = installedCoreIds,
+                        installingCore = installingCore,
+                        onDismiss = { selectedGame = null },
+                        onInstallCore = installCore,
+                        onPlay = { coreId ->
+                            val path = game.localPath
+                            if (path != null && File(path).isFile) {
+                                playingCoreId = coreId
+                                playingGame = game
+                                selectedGame = null
+                            } else {
+                                authMessage = "Esse jogo precisa ser reimportado para ser executado."
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -690,20 +762,132 @@ private fun BottomBar(tab: String, onSelect: (String) -> Unit) {
 }
 
 @Composable
-private fun GameInfoDialog(game: GameEntry, onDismiss: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, containerColor = Panel2,
-        title = { Text(game.title, color = Color.White, fontWeight = FontWeight.Black) },
-        text = { Text("Arquivo reconhecido na biblioteca. A execução real depende da integração e distribuição dos núcleos de emulação compatíveis. Esta versão inicial ainda não executa ROMs.", color = Muted) },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("ENTENDI", color = Cyan) } })
+private fun GameInfoDialog(
+    game: GameEntry,
+    installedCoreIds: Set<String>,
+    installingCore: String?,
+    onDismiss: () -> Unit,
+    onInstallCore: (String) -> Unit,
+    onPlay: (String) -> Unit
+) {
+    var useGpSp by remember(game.id) { mutableStateOf(false) }
+    val coreId = when (game.platform) {
+        Platform.GBA -> if (useGpSp) "gpsp" else "mgba"
+        Platform.NEOGEO, Platform.ARCADE -> "fbneo"
+    }
+    val coreTitle = CoreCatalog.find(coreId)?.title ?: coreId
+    val installed = installedCoreIds.contains(coreId)
+    val installing = installingCore == coreId
+    val fileReady = game.localPath?.let { File(it).isFile } == true
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Panel2,
+        title = { Text(game.title, color = Color.White, fontFamily = DisplayFont, fontSize = 20.sp) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("SISTEMA  •  " + game.platform.label.uppercase(), color = Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("NÚCLEO  •  " + coreTitle, color = Color.White, fontSize = 12.sp)
+                if (game.platform == Platform.GBA) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Modo Wireless Adapter", color = Color.White, fontSize = 11.sp)
+                            Text("gpSP experimental para recursos sem fio de FireRed", color = Muted, fontSize = 9.sp)
+                        }
+                        Switch(checked = useGpSp, onCheckedChange = { useGpSp = it })
+                    }
+                    Text("O modo online entre casas ainda não está ativado. mGBA é a escolha padrão para jogar GBA offline.", color = Muted, fontSize = 9.sp)
+                }
+                Text(
+                    when {
+                        !fileReady -> "O arquivo precisa ser reimportado para ficar disponível no armazenamento seguro do app."
+                        installed -> "Arquivo pronto. O núcleo está instalado e pode ser iniciado."
+                        installing -> "Baixando e validando o núcleo…"
+                        else -> "O núcleo ainda não está instalado neste aparelho."
+                    },
+                    color = if (fileReady && installed) Color(0xFF4AFFA3) else Muted,
+                    fontSize = 10.sp
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = fileReady && !installing,
+                onClick = {
+                    if (installed) onPlay(coreId) else onInstallCore(coreId)
+                }
+            ) {
+                Text(if (installing) "BAIXANDO…" else if (installed) "JOGAR" else "INSTALAR NÚCLEO", color = Cyan)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("FECHAR", color = Muted) } }
+    )
 }
 
-private fun loadImportedGames(prefs: android.content.SharedPreferences): List<GameEntry> =
-    prefs.getStringSet("imported_uris", emptySet()).orEmpty().map { raw ->
-        GameEntry("local-${raw.hashCode()}", raw.substringAfterLast('/').substringAfterLast(':').ifBlank { "Jogo importado" }, Platform.ARCADE, "Arquivo local importado", 0xFF45D9E8, raw)
+private fun loadImportedGames(prefs: android.content.SharedPreferences): List<GameEntry> {
+    val storedPaths = prefs.getStringSet("imported_paths", emptySet()).orEmpty()
+    val paths = storedPaths.mapNotNull { raw ->
+        val file = File(raw)
+        if (!file.isFile) return@mapNotNull null
+        val platform = detectPlatform(file.name) ?: Platform.ARCADE
+        GameEntry(
+            id = "local-" + raw.hashCode(),
+            title = file.name,
+            platform = platform,
+            subtitle = platform.label + " • arquivo local",
+            accent = when (platform) {
+                Platform.GBA -> 0xFF00EFFF
+                Platform.NEOGEO -> 0xFFFF2DD6
+                else -> 0xFF8F5BFF
+            },
+            localPath = raw
+        )
     }
+    val legacyUris = prefs.getStringSet("imported_uris", emptySet()).orEmpty().map { raw ->
+        val name = raw.substringAfterLast('/').substringAfterLast(':').ifBlank { "Jogo importado" }
+        val platform = detectPlatform(name) ?: Platform.ARCADE
+        GameEntry(
+            id = "legacy-" + raw.hashCode(),
+            title = name,
+            platform = platform,
+            subtitle = "Reimporte este arquivo para jogar",
+            accent = 0xFF45D9E8,
+            sourceUri = raw
+        )
+    }
+    return (paths + legacyUris).distinctBy { it.localPath ?: it.sourceUri }
+}
 
 private fun saveImportedGames(prefs: android.content.SharedPreferences, games: List<GameEntry>) {
-    prefs.edit().putStringSet("imported_uris", games.mapNotNull { it.importedUri }.toSet()).apply()
+    prefs.edit()
+        .putStringSet("imported_paths", games.mapNotNull { it.localPath }.toSet())
+        .putStringSet("imported_uris", games.filter { it.localPath == null }.mapNotNull { it.sourceUri }.toSet())
+        .apply()
+}
+
+private fun detectPlatform(filename: String): Platform? {
+    return when (filename.substringAfterLast('.', "").lowercase()) {
+        "gba" -> Platform.GBA
+        "zip" -> if (filename.lowercase().contains("neogeo")) Platform.NEOGEO else Platform.ARCADE
+        else -> null
+    }
+}
+
+private suspend fun copyGameToPrivateStorage(context: android.content.Context, uri: Uri, displayName: String): String =
+    withContext(Dispatchers.IO) {
+        val directory = File(context.filesDir, "games")
+        if (!directory.exists() && !directory.mkdirs()) throw IOException("Não foi possível criar a biblioteca local.")
+        val safeName = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "game.rom" }
+        val destination = File(directory, System.currentTimeMillis().toString() + "_" + safeName)
+        val source = context.contentResolver.openInputStream(uri) ?: throw IOException("Não foi possível ler o arquivo selecionado.")
+        source.use { input ->
+            destination.outputStream().use { output -> input.copyTo(output) }
+        }
+        if (!destination.isFile || destination.length() == 0L) {
+            destination.delete()
+            throw IOException("O arquivo importado está vazio ou incompleto.")
+        }
+        destination.absolutePath
 }
 
 private fun queryDisplayName(context: android.content.Context, uri: Uri): String {

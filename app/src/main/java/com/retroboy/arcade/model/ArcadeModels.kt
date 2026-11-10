@@ -10,7 +10,8 @@ data class GameEntry(
     val platform: Platform,
     val subtitle: String,
     val accent: Long,
-    val importedUri: String? = null,
+    val localPath: String? = null,
+    val sourceUri: String? = null,
     val isDemo: Boolean = false
 )
 
