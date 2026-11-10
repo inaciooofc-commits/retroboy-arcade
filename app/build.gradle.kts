@@ -22,6 +22,11 @@ val catalogUrl = providers.gradleProperty("RETROBOY_CATALOG_URL")
     .orElse(providers.environmentVariable("RETROBOY_CATALOG_URL"))
     .orElse(localProperties.getProperty("RETROBOY_CATALOG_URL", ""))
     .get()
+val turnUrl = providers.gradleProperty("RETROBOY_TURN_URL").orElse(providers.environmentVariable("RETROBOY_TURN_URL")).orElse(localProperties.getProperty("RETROBOY_TURN_URL", "")).get()
+val turnUsername = providers.gradleProperty("RETROBOY_TURN_USERNAME").orElse(providers.environmentVariable("RETROBOY_TURN_USERNAME")).orElse(localProperties.getProperty("RETROBOY_TURN_USERNAME", "")).get()
+val turnCredential = providers.gradleProperty("RETROBOY_TURN_CREDENTIAL").orElse(providers.environmentVariable("RETROBOY_TURN_CREDENTIAL")).orElse(localProperties.getProperty("RETROBOY_TURN_CREDENTIAL", "")).get()
+fun buildConfigLiteral(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
 
 android {
     namespace = "com.retroboy.arcade"
@@ -31,14 +36,17 @@ android {
         applicationId = "com.retroboy.arcade"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3.0-alpha"
+        versionCode = 4
+        versionName = "0.4.0-beta"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
         externalNativeBuild { cmake { cppFlags += "-std=c++17" } }
         buildConfigField("String", "SUPABASE_URL", "\"${supabaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${supabaseAnonKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
         buildConfigField("String", "CATALOG_URL", "\"${catalogUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+        buildConfigField("String", "TURN_URL", buildConfigLiteral(turnUrl))
+        buildConfigField("String", "TURN_USERNAME", buildConfigLiteral(turnUsername))
+        buildConfigField("String", "TURN_CREDENTIAL", buildConfigLiteral(turnCredential))
     }
 
     buildFeatures {
@@ -76,6 +84,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("io.github.webrtc-sdk:android:150.7871.04")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
