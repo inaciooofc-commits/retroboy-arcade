@@ -659,7 +659,7 @@ private fun ProfileScreen(
         ActionCard(Icons.Rounded.Security, "Conta e segurança", if (guest) "Entre ou crie uma conta para preparar a sincronização." else email, onLogin)
         ActionCard(Icons.Rounded.Logout, if (guest) "Entrar em uma conta" else "Sair da conta", "Sua biblioteca e seu perfil local permanecem neste aparelho.", onLogout)
         Text("As estatísticas online, lista de amigos e sincronização serão ativadas após a configuração do projeto Supabase e do motor de partidas.", color = Muted, fontSize = 9.sp)
-        Text("Retroboy Arcade • versão 0.2.0-alpha", color = Muted, fontSize = 10.sp)
+        Text("Retroboy Arcade • versão 0.3.0-alpha", color = Muted, fontSize = 10.sp)
     }
 
     if (editing) {

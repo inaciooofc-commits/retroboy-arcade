@@ -39,7 +39,7 @@
 - [ ] Assinatura de release e publicação
 
 
-## Fase 1.1 — Gerenciador de núcleos (0.2.0-alpha)
+## Fase 1.1 — Gerenciador de núcleos (0.3.0-alpha)
 - [x] Fontes Stranger e NightWork integradas como recursos Android.
 - [x] Catálogo dos núcleos oficiais FBNeo, gpSP e mGBA.
 - [x] Download e extração segura por ABI.
