@@ -52,6 +52,12 @@
 - [x] Recursos de avatar, moldura e patente do perfil.
 - [ ] Integrar o restante do pacote gráfico completo: telas, barras, ícones, navegação e componentes.
 
+## Conquistas por jogo
+- [x] Integrar consulta por hash ao catálogo de jogos com conquistas do RetroAchievements.
+- [x] Carregar o conjunto individual de cada ROM reconhecida e o progresso do usuário.
+- [x] Guardar a Web API Key localmente com Android Keystore.
+- [ ] Integrar rcheevos ao runtime nativo e mapear memória por core para desbloqueio em tempo real.
+
 ## Fontes externas
 - [x] Adicionar Vimm's Lair como link externo no Download Center.
 - [ ] Melhorar o importador para arquivos compactados de consoles sem hospedar ou redistribuir ROMs.

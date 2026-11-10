@@ -38,6 +38,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           RETROBOY_CATALOG_URL: ${{ secrets.RETROBOY_CATALOG_URL }}
+      RETROBOY_TURN_URL: ${{ secrets.RETROBOY_TURN_URL }}
+      RETROBOY_TURN_USERNAME: ${{ secrets.RETROBOY_TURN_USERNAME }}
+      RETROBOY_TURN_CREDENTIAL: ${{ secrets.RETROBOY_TURN_CREDENTIAL }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
