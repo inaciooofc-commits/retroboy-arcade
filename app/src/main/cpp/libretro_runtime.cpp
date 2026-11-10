@@ -110,9 +110,6 @@ static bool environmentCallback(unsigned command, void* data) {
         case RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY:
             if (data) *static_cast<const char**>(data) = r->saveDir.c_str();
             return true;
-        case RETRO_ENVIRONMENT_GET_CORE_ASSETS_DIRECTORY:
-            if (data) *static_cast<const char**>(data) = r->systemDir.c_str();
-            return true;
         case RETRO_ENVIRONMENT_GET_CONTENT_DIRECTORY:
             if (data) *static_cast<const char**>(data) = r->contentDir.c_str();
             return true;

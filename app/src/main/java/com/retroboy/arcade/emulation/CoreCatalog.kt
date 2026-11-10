@@ -7,7 +7,7 @@ data class CoreDefinition(
     val description: String,
     val license: String,
     val netplay: Boolean,
-    val supportedAbis: Set<String> = setOf("arm64-v8a", "armeabi-v7a")
+    val supportedAbis: Set<String> = setOf("arm64-v8a", "armeabi-v7a", "x86_64")
 )
 
 object CoreCatalog {

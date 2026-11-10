@@ -32,7 +32,7 @@ class CoreInstaller(context: Context) {
         .build()
 
     private fun selectedAbi(): String? {
-        return Build.SUPPORTED_ABIS.firstOrNull { it == "arm64-v8a" || it == "armeabi-v7a" }
+        return Build.SUPPORTED_ABIS.firstOrNull { it == "arm64-v8a" || it == "armeabi-v7a" || it == "x86_64" }
     }
 
     private fun coreFile(coreId: String, abi: String): File {
@@ -42,6 +42,11 @@ class CoreInstaller(context: Context) {
     fun installedCoreIds(): Set<String> {
         val abi = selectedAbi() ?: return emptySet()
         return CoreCatalog.all.filter { coreFile(it.id, abi).isFile }.map { it.id }.toSet()
+    }
+
+    fun installedCorePath(coreId: String): String? {
+        val abi = selectedAbi() ?: return null
+        return coreFile(coreId, abi).takeIf { it.isFile }?.absolutePath
     }
 
     suspend fun install(coreId: String): Result<InstalledCore> = withContext(Dispatchers.IO) {
@@ -95,14 +100,18 @@ class CoreInstaller(context: Context) {
                 throw IOException("A biblioteca não passou na verificação Libretro: " + probe)
             }
 
-            if (target.exists() && !target.delete()) {
+            val backup = File(directory, core.id + ".previous")
+            if (backup.exists()) backup.delete()
+            if (target.exists() && !target.renameTo(backup)) {
                 temporary.delete()
-                throw IOException("Não foi possível substituir o núcleo anterior.")
+                throw IOException("Não foi possível preservar a instalação anterior.")
             }
             if (!temporary.renameTo(target)) {
+                if (backup.exists()) backup.renameTo(target)
                 temporary.delete()
                 throw IOException("Não foi possível finalizar a instalação do núcleo.")
             }
+            if (backup.exists()) backup.delete()
 
             InstalledCore(
                 id = core.id,
