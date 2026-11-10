@@ -156,21 +156,27 @@ class LibretroGameSession(
         closed = true
         inputMask = 0
         NativeLibretroRuntime.nativeSetInputMask(0)
+        NativeLibretroRuntime.nativePause(true)
         audioJob?.cancel()
         saveJob?.cancel()
-        runCatching {
-            val battery = NativeLibretroRuntime.nativeGetSaveRam()
-            if (battery != null && battery.isNotEmpty()) {
-                batteryFile.parentFile?.mkdirs()
-                batteryFile.writeBytes(battery)
+        val track = audioTrack
+        audioScope.launch {
+            audioJob?.join()
+            saveJob?.join()
+            runCatching {
+                val battery = NativeLibretroRuntime.nativeGetSaveRam()
+                if (battery != null && battery.isNotEmpty()) {
+                    batteryFile.parentFile?.mkdirs()
+                    batteryFile.writeBytes(battery)
+                }
             }
+            runCatching { track?.pause() }
+            runCatching { track?.flush() }
+            runCatching { track?.stop() }
+            track?.release()
+            audioTrack = null
+            NativeLibretroRuntime.nativeDestroy()
+            audioScope.cancel()
         }
-        runCatching { audioTrack?.pause() }
-        runCatching { audioTrack?.flush() }
-        runCatching { audioTrack?.stop() }
-        audioTrack?.release()
-        audioTrack = null
-        NativeLibretroRuntime.nativeDestroy()
-        audioScope.cancel()
     }
 }

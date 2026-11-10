@@ -1,6 +1,7 @@
 package com.retroboy.arcade
 
 import android.graphics.PixelFormat
+import android.view.KeyEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.compose.foundation.background
@@ -78,7 +79,9 @@ fun GamePlayerScreen(
     val sessionRef = remember { mutableStateOf<LibretroGameSession?>(null) }
     var status by remember { mutableStateOf("Preparando o núcleo…") }
     var paused by remember { mutableStateOf(false) }
-    var surfaceCreated by remember { mutableStateOf(false) }
+    var surfaceReady by remember { mutableStateOf(false) }
+    val stateFile = remember(title, saveDirectory) { File(saveDirectory, safeStateFileName(title)) }
+    var hasSaveState by remember { mutableStateOf(stateFile.isFile) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -116,6 +119,31 @@ fun GamePlayerScreen(
             }
         }
 
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            TextButton(onClick = {
+                scope.launch {
+                    val bytes = withContext(Dispatchers.IO) { sessionRef.value?.saveState() }
+                    if (bytes != null) {
+                        withContext(Dispatchers.IO) {
+                            stateFile.parentFile?.mkdirs()
+                            stateFile.writeBytes(bytes)
+                        }
+                        hasSaveState = true
+                        status = "SAVE STATE SALVO"
+                    } else {
+                        status = "NÚCLEO NÃO DISPONIBILIZA SAVE STATE"
+                    }
+                }
+            }) { Text("SALVAR ESTADO", color = PlayerCyan, fontSize = 9.sp) }
+            TextButton(enabled = hasSaveState, onClick = {
+                scope.launch {
+                    val bytes = withContext(Dispatchers.IO) { stateFile.takeIf { it.isFile }?.readBytes() }
+                    val loaded = bytes?.let { state -> withContext(Dispatchers.IO) { sessionRef.value?.loadState(state) } } == true
+                    status = if (loaded) "SAVE STATE CARREGADO" else "NÃO FOI POSSÍVEL CARREGAR"
+                }
+            }) { Text("CARREGAR", color = if (hasSaveState) PlayerCyan else PlayerMuted, fontSize = 9.sp) }
+        }
+
         Box(
             Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(12.dp))
                 .background(Color.Black).border(1.dp, PlayerPurple.copy(alpha = .45f), RoundedCornerShape(12.dp))
@@ -124,11 +152,38 @@ fun GamePlayerScreen(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
                     SurfaceView(ctx).apply {
+                        isFocusable = true
+                        isFocusableInTouchMode = true
                         holder.setFormat(PixelFormat.RGBA_8888)
+                        setOnKeyListener { _, keyCode, event ->
+                            val buttonId = when (keyCode) {
+                                KeyEvent.KEYCODE_DPAD_UP -> 4
+                                KeyEvent.KEYCODE_DPAD_DOWN -> 5
+                                KeyEvent.KEYCODE_DPAD_LEFT -> 6
+                                KeyEvent.KEYCODE_DPAD_RIGHT -> 7
+                                KeyEvent.KEYCODE_BUTTON_B -> 0
+                                KeyEvent.KEYCODE_BUTTON_Y -> 1
+                                KeyEvent.KEYCODE_BUTTON_SELECT -> 2
+                                KeyEvent.KEYCODE_BUTTON_START -> 3
+                                KeyEvent.KEYCODE_BUTTON_A -> 8
+                                KeyEvent.KEYCODE_BUTTON_X -> 9
+                                KeyEvent.KEYCODE_BUTTON_L1 -> 10
+                                KeyEvent.KEYCODE_BUTTON_R1 -> 11
+                                KeyEvent.KEYCODE_BUTTON_L2 -> 12
+                                KeyEvent.KEYCODE_BUTTON_R2 -> 13
+                                else -> -1
+                            }
+                            if (buttonId >= 0) {
+                                if (event.action == KeyEvent.ACTION_DOWN) sessionRef.value?.setButton(buttonId, true)
+                                if (event.action == KeyEvent.ACTION_UP) sessionRef.value?.setButton(buttonId, false)
+                                true
+                            } else false
+                        }
+                        requestFocus()
                         holder.addCallback(object : SurfaceHolder.Callback {
                             override fun surfaceCreated(holder: SurfaceHolder) {
                                 if (sessionRef.value != null) return
-                                surfaceCreated = true
+                                surfaceReady = true
                                 status = "Inicializando emulador…"
                                 val targetSurface = holder.surface
                                 scope.launch {
@@ -158,7 +213,7 @@ fun GamePlayerScreen(
                             override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
 
                             override fun surfaceDestroyed(holder: SurfaceHolder) {
-                                surfaceCreated = false
+                                surfaceReady = false
                                 sessionRef.value?.close()
                                 sessionRef.value = null
                             }
@@ -166,7 +221,7 @@ fun GamePlayerScreen(
                     }
                 }
             )
-            if (!surfaceCreated) {
+            if (!surfaceReady) {
                 Text("AGUARDANDO TELA DE JOGO", color = PlayerMuted, fontSize = 10.sp, modifier = Modifier.align(Alignment.Center))
             }
         }
@@ -199,7 +254,7 @@ fun GamePlayerScreen(
                 }
             }
         }
-        Text("Controles touch • gamepad Bluetooth/USB em preparação", color = PlayerMuted, fontSize = 8.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+        Text("Controles touch • gamepad Bluetooth/USB", color = PlayerMuted, fontSize = 8.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
     }
 }
 
@@ -228,3 +283,6 @@ private fun TouchControl(
         Text(label, color = Color.White, fontSize = if (small) 8.sp else 15.sp, fontWeight = FontWeight.Bold)
     }
 }
+
+private fun safeStateFileName(title: String): String =
+    title.replace(Regex("[^A-Za-z0-9._-]"), "_") + ".state"
