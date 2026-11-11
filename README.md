@@ -5,7 +5,7 @@ Aplicativo Android de jogos retrô, desenvolvido em Kotlin + Jetpack Compose, co
 ## O que já está implementado
 
 - Interface Android com navegação, biblioteca e perfil do jogador.
-- Logotipo com fonte personalizada Stranger e tipografia de display.
+- Interface com tipografia sans-serif limpa e legível, mantendo a identidade arcade neon.
 - Avatares, moldura neon e patente inicial; nome e avatar editáveis.
 - ID local do jogador, nível/XP inicial, biblioteca, conquistas e medalhas.
 - Importação de jogos GB/GBC/GBA, NES, SNES, Mega Drive/Master System/Game Gear, PlayStation, Atari 2600/Lynx, PC Engine e romsets Arcade/Neo Geo.
@@ -44,7 +44,7 @@ A versão 0.4 implementa WebRTC DataChannel para enviar os estados dos controles
 - STUN público é configurado por padrão. Para redes com CGNAT ou NAT simétrico, configure um TURN próprio usando `RETROBOY_TURN_URL`, `RETROBOY_TURN_USERNAME` e `RETROBOY_TURN_CREDENTIAL`.
 - Esta implementação sincroniza estados de botões por canal confiável; não é o protocolo de rollback/frame-lockstep do RetroArch. A latência depende da rede e cada aparelho executa localmente o mesmo jogo.
 
-É necessário configurar `SUPABASE_URL` e `SUPABASE_ANON_KEY` no build para a sinalização.
+Configure a URL do projeto e a chave pública publishable/anon na aba Online do aplicativo, ou forneça `SUPABASE_URL` e `SUPABASE_ANON_KEY` na build. A chave deve ser pública e as políticas do projeto precisam permitir o canal de sala.
 
 ## Fontes externas, ROMs e BIOS
 
@@ -89,7 +89,7 @@ APK esperado: `app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Pacote gráfico
 
-As fontes Stranger/NightWork e os recursos principais do perfil (avatares, moldura neon e patente bronze) já estão no build. A navegação e as telas são renderizadas em Compose. A integração do restante do pacote gráfico completo continua no roadmap.
+O build atual inclui quatro avatares, moldura neon e patente bronze. A navegação e as telas são renderizadas em Compose; o pacote gráfico completo (cards, botões, barras, medalhas, patentes adicionais e telas de referência) ainda precisa ser conectado aos componentes correspondentes.
 
 ## Próximas etapas
 
