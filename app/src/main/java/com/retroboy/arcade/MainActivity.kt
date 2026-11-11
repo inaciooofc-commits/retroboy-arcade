@@ -35,7 +35,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -65,7 +64,7 @@ private val Purple = Color(0xFF8F5BFF)
 private val Cyan = Color(0xFF00EFFF)
 private val Pink = Color(0xFFFF2DD6)
 private val Muted = Color(0xFF93A4C8)
-private val BrandFont = FontFamily(Font(R.font.stranger_title))
+private val BrandFont = FontFamily.SansSerif
 private val DisplayFont = FontFamily.SansSerif
 
 class MainActivity : ComponentActivity() {
@@ -759,7 +758,7 @@ private fun ProfileScreen(
         ActionCard(Icons.Rounded.Security, "Conta e segurança", if (guest) "Entre ou crie uma conta para preparar a sincronização." else email, onLogin)
         ActionCard(Icons.Rounded.Logout, if (guest) "Entrar em uma conta" else "Sair da conta", "Sua biblioteca e seu perfil local permanecem neste aparelho.", onLogout)
         Text("As estatísticas online, lista de amigos e sincronização serão ativadas após a configuração do projeto Supabase e do motor de partidas.", color = Muted, fontSize = 9.sp)
-        Text("Retroboy Arcade • versão 0.3.0-alpha", color = Muted, fontSize = 10.sp)
+        Text("Retroboy Arcade • versão 0.4.0-beta", color = Muted, fontSize = 10.sp)
     }
 
     if (editing) {
