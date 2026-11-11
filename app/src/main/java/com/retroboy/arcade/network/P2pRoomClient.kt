@@ -335,7 +335,7 @@ class P2pRoomClient(
             payload.put(key, extra.opt(key))
         }
         socket?.send(JSONObject().put("topic", topic).put("event", "broadcast")
-            .put("payload", JSONObject().put("event", "signal").put("payload", payload))
+            .put("payload", JSONObject().put("type", "broadcast").put("event", "signal").put("payload", payload))
             .put("ref", refs.getAndIncrement().toString()).put("join_ref", JOIN_REF).toString())
     }
 
